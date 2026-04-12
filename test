@@ -1,0 +1,55 @@
+DiamondRush-Project/
+│
+├── src/                                 (Thư mục chứa toàn bộ Source Code)
+│   └── main/                            (Package gốc)
+│       ├── Game.java                    (Điểm bắt đầu - Chạy hàm main) [Bạn - N1]
+│       │
+│       ├── config/                      (Cấu hình thông số game)
+│       │   └── GameConfig.java          [Bạn - N1]
+│       │
+│       ├── core/                        (Động cơ cốt lõi)
+│       │   ├── GamePanel.java           (Bảng vẽ chứa mọi vật thể) [Bạn - N1]
+│       │   └── GameLoop.java            (Vòng lặp 60 FPS) [Bạn - N1]
+│       │
+│       ├── entity/                      (Thực thể có thể di chuyển)
+│       │   ├── Entity.java              (Lớp cha trừu tượng) [Bạn dựng khung]
+│       │   ├── Player.java              (Nhân vật chính) [Người 2]
+│       │   └── Enemy.java               (Quái vật/Chướng ngại vật động) [Người 4]
+│       │
+│       ├── object/                      (Thực thể đứng im/Môi trường)
+│       │   ├── GameObject.java          (Lớp cha trừu tượng) [Bạn dựng khung]
+│       │   ├── Diamond.java             (Kim cương) [Người 3]
+│       │   ├── Rock.java                (Hòn đá cản đường) [Người 3]
+│       │   └── Wall.java                (Tường bao quanh) [Người 3]
+│       │
+│       ├── map/                         (Quản lý hệ thống lưới)
+│       │   ├── Tile.java                (Định nghĩa 1 ô gạch) [Bạn - N1]
+│       │   └── MapLoader.java           (Đọc file txt vẽ ra map) [Bạn - N1]
+│       │
+│       ├── input/                       (Xử lý tín hiệu người dùng)
+│       │   └── KeyHandler.java          (Bắt sự kiện bàn phím) [Người 2]
+│       │
+│       ├── ui/                          (Hiển thị giao diện overlays)
+│       │   └── UI.java                  (Vẽ điểm số, Menu, Game Over) [Người 5]
+│       │
+│       └── util/                        (Các công cụ hỗ trợ)
+│           ├── Collision.java           (Thuật toán xét va chạm) [Người 3]
+│           └── Sound.java               (Chạy file âm thanh) [Người 5]
+│
+├── res/                                 (Tài nguyên - Bắt buộc tách khỏi code)
+│   ├── maps/
+│   │   └── map01.txt                    (File ma trận số vẽ bản đồ)
+│   │
+│   ├── sprites/                         (Thư mục chứa ảnh PNG)
+│   │   ├── player/                      (Ảnh nhân vật chạy)
+│   │   ├── enemies/                     (Ảnh quái)
+│   │   └── objects/                     (Ảnh gạch, đá, kim cương)
+│   │
+│   └── sounds/                          (Thư mục chứa âm thanh WAV)
+│       ├── bg_music.wav                 (Nhạc nền)
+│       └── eat_diamond.wav              (Tiếng ăn điểm)
+│
+├── docs/                                (Tài liệu nộp cho giảng viên)
+│   └── UML_Class_Diagram.png            (Ảnh sơ đồ lớp)
+│
+└── README.md                            (File hướng dẫn cài đặt trên GitHub)
