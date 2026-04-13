@@ -2,39 +2,39 @@ DiamondRush-Project/
 │
 ├── src/                                 (Thư mục chứa toàn bộ Source Code)
 │   └── main/                            (Package gốc)
-│       ├── Game.java                    (Điểm bắt đầu - Chạy hàm main) [Huy Hoang]
+│       ├── Game.java                    (Điểm bắt đầu - Chạy hàm main) [Bạn - N1]
 │       │
 │       ├── config/                      (Cấu hình thông số game)
-│       │   └── GameConfig.java          [Huy Hoang]
+│       │   └── GameConfig.java          [Bạn - N1]
 │       │
 │       ├── core/                        (Động cơ cốt lõi)
-│       │   ├── GamePanel.java           (Bảng vẽ chứa mọi vật thể) [Huy Hoang]
-│       │   └── GameLoop.java            (Vòng lặp 60 FPS) [Huy Hoang]
+│       │   ├── GamePanel.java           (Bảng vẽ chứa mọi vật thể) [Bạn - N1]
+│       │   └── GameLoop.java            (Vòng lặp 60 FPS) [Bạn - N1]
 │       │
 │       ├── entity/                      (Thực thể có thể di chuyển)
-│       │   ├── Entity.java              (Lớp cha trừu tượng) [Huy Hoang]
-│       │   ├── Player.java              (Nhân vật chính) [Nguyen Tuan]
-│       │   └── Enemy.java               (Quái vật/Chướng ngại vật động) [Nguyen Thai]
+│       │   ├── Entity.java              (Lớp cha trừu tượng) [Bạn dựng khung]
+│       │   ├── Player.java              (Nhân vật chính) [Người 2]
+│       │   └── Enemy.java               (Quái vật/Chướng ngại vật động) [Người 4]
 │       │
 │       ├── object/                      (Thực thể đứng im/Môi trường)
-│       │   ├── GameObject.java          (Lớp cha trừu tượng) [Huy Hoang]
-│       │   ├── Diamond.java             (Kim cương) [Truong Hoang]
-│       │   ├── Rock.java                (Hòn đá cản đường) [Truong Hoang]
-│       │   └── Wall.java                (Tường bao quanh) [Truong Hoang]
+│       │   ├── GameObject.java          (Lớp cha trừu tượng) [Bạn dựng khung]
+│       │   ├── Diamond.java             (Kim cương) [Người 3]
+│       │   ├── Rock.java                (Hòn đá cản đường) [Người 3]
+│       │   └── Wall.java                (Tường bao quanh) [Người 3]
 │       │
 │       ├── map/                         (Quản lý hệ thống lưới)
-│       │   ├── Tile.java                (Định nghĩa 1 ô gạch) [Huy Hoang]
-│       │   └── MapLoader.java           (Đọc file txt vẽ ra map) [Huy Hoang]
+│       │   ├── Tile.java                (Định nghĩa 1 ô gạch) [Bạn - N1]
+│       │   └── MapLoader.java           (Đọc file txt vẽ ra map) [Bạn - N1]
 │       │
 │       ├── input/                       (Xử lý tín hiệu người dùng)
-│       │   └── KeyHandler.java          (Bắt sự kiện bàn phím) [Nguyen Tuan]
+│       │   └── KeyHandler.java          (Bắt sự kiện bàn phím) [Người 2]
 │       │
 │       ├── ui/                          (Hiển thị giao diện overlays)
-│       │   └── UI.java                  (Vẽ điểm số, Menu, Game Over) [Huu Vinh]
+│       │   └── UI.java                  (Vẽ điểm số, Menu, Game Over) [Người 5]
 │       │
 │       └── util/                        (Các công cụ hỗ trợ)
-│           ├── Collision.java           (Thuật toán xét va chạm) [Truong Hoang]
-│           └── Sound.java               (Chạy file âm thanh) [Huu Vinh]
+│           ├── Collision.java           (Thuật toán xét va chạm) [Người 3]
+│           └── Sound.java               (Chạy file âm thanh) [Người 5]
 │
 ├── res/                                 (Tài nguyên - Bắt buộc tách khỏi code)
 │   ├── maps/
@@ -49,7 +49,7 @@ DiamondRush-Project/
 │       ├── bg_music.wav                 (Nhạc nền)
 │       └── eat_diamond.wav              (Tiếng ăn điểm)
 │
-├── docs/                                uml
+├── docs/                                (Tài liệu nộp cho giảng viên)
 │   └── UML_Class_Diagram.png            (Ảnh sơ đồ lớp)
 │
 └── README.md                            (File hướng dẫn cài đặt trên GitHub)
