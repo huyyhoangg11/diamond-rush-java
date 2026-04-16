@@ -1,6 +1,9 @@
 package main.core;
 
 import main.config.GameConfig;
+import main.entity.Player;
+import main.input.KeyHandler;
+
 import javax.swing.JPanel;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -10,7 +13,12 @@ import java.awt.Graphics2D;
 public class GamePanel extends JPanel {
 
     // Sau này bạn sẽ khởi tạo MapLoader, Player, mảng Enemy, mảng Object ở đây
+	
+	// Player
+	KeyHandler keyH = new KeyHandler();
+    Player player = new Player(this, keyH);
 
+	
     public GamePanel() {
         this.setPreferredSize(new Dimension(GameConfig.SCREEN_WIDTH, GameConfig.SCREEN_HEIGHT));
         this.setBackground(Color.BLACK);
@@ -31,7 +39,7 @@ public class GamePanel extends JPanel {
         Graphics2D g2 = (Graphics2D) g;
 
         // mapLoader.draw(g2);
-        // player.draw(g2);
+        player.draw(g2);
 
         g2.dispose();
     }
