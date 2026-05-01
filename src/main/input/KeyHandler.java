@@ -10,7 +10,8 @@ public class KeyHandler implements KeyListener {
 
     @Override
     public void keyTyped(KeyEvent e) {
-        // Hàm này không dùng đến trong game di chuyển, nhưng bắt buộc phải có để thỏa mãn Interface KeyListener
+        // Hàm này không dùng đến trong game di chuyển, nhưng bắt buộc phải có để thỏa
+        // mãn Interface KeyListener
     }
 
     @Override
