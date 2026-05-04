@@ -5,47 +5,75 @@ import java.awt.event.KeyListener;
 
 public class KeyHandler implements KeyListener {
 
-    // Các biến trạng thái: Bằng true nếu đang giữ phím, bằng false nếu nhả phím
     public boolean upPressed, downPressed, leftPressed, rightPressed;
+
+    // optional: thêm nút khác
+    public boolean enterPressed;
 
     @Override
     public void keyTyped(KeyEvent e) {
-        // Hàm này không dùng đến trong game di chuyển, nhưng bắt buộc phải có để thỏa mãn Interface KeyListener
+        // không cần dùng
     }
 
     @Override
     public void keyPressed(KeyEvent e) {
-        int code = e.getKeyCode(); // Lấy mã số của phím vừa bấm
+        int code = e.getKeyCode();
 
-        if (code == KeyEvent.VK_W || code == KeyEvent.VK_UP) {
-            upPressed = true;
-        }
-        if (code == KeyEvent.VK_S || code == KeyEvent.VK_DOWN) {
-            downPressed = true;
-        }
-        if (code == KeyEvent.VK_A || code == KeyEvent.VK_LEFT) {
-            leftPressed = true;
-        }
-        if (code == KeyEvent.VK_D || code == KeyEvent.VK_RIGHT) {
-            rightPressed = true;
+        switch (code) {
+            case KeyEvent.VK_W:
+            case KeyEvent.VK_UP:
+                upPressed = true;
+                break;
+
+            case KeyEvent.VK_S:
+            case KeyEvent.VK_DOWN:
+                downPressed = true;
+                break;
+
+            case KeyEvent.VK_A:
+            case KeyEvent.VK_LEFT:
+                leftPressed = true;
+                break;
+
+            case KeyEvent.VK_D:
+            case KeyEvent.VK_RIGHT:
+                rightPressed = true;
+                break;
+
+            case KeyEvent.VK_ENTER:
+                enterPressed = true;
+                break;
         }
     }
 
     @Override
     public void keyReleased(KeyEvent e) {
-        int code = e.getKeyCode(); // Lấy mã số của phím vừa nhả ra
+        int code = e.getKeyCode();
 
-        if (code == KeyEvent.VK_W || code == KeyEvent.VK_UP) {
-            upPressed = false;
-        }
-        if (code == KeyEvent.VK_S || code == KeyEvent.VK_DOWN) {
-            downPressed = false;
-        }
-        if (code == KeyEvent.VK_A || code == KeyEvent.VK_LEFT) {
-            leftPressed = false;
-        }
-        if (code == KeyEvent.VK_D || code == KeyEvent.VK_RIGHT) {
-            rightPressed = false;
+        switch (code) {
+            case KeyEvent.VK_W:
+            case KeyEvent.VK_UP:
+                upPressed = false;
+                break;
+
+            case KeyEvent.VK_S:
+            case KeyEvent.VK_DOWN:
+                downPressed = false;
+                break;
+
+            case KeyEvent.VK_A:
+            case KeyEvent.VK_LEFT:
+                leftPressed = false;
+                break;
+
+            case KeyEvent.VK_D:
+            case KeyEvent.VK_RIGHT:
+                rightPressed = false;
+                break;
+
+            case KeyEvent.VK_ENTER:
+                enterPressed = false;
+                break;
         }
     }
-} // Nguyễn Tuấn làm phần này
+}
