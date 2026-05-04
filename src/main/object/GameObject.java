@@ -11,6 +11,15 @@ public abstract class GameObject {
     public boolean collision = false; // Có đi xuyên qua được không?
     public int worldX, worldY;
     public Rectangle solidArea = new Rectangle(0, 0, 48, 48);
+    protected boolean active = true;
 
     public abstract void draw(Graphics2D g2, GamePanel gp);
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
 }
