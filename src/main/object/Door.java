@@ -5,13 +5,13 @@ import java.awt.Graphics2D;
 
 import main.core.GamePanel;
 
-public class Diamond extends GameObject {
+public class Door extends GameObject {
 
-    public Diamond(int worldX, int worldY) {
-        this.name = "Diamond";
+    public Door(int worldX, int worldY) {
+        this.name = "Door";
         this.worldX = worldX;
         this.worldY = worldY;
-        this.collision = false;
+        this.collision = true;
     }
 
     @Override
@@ -19,7 +19,7 @@ public class Diamond extends GameObject {
         if (!active) {
             return;
         }
-        g2.setColor(Color.CYAN);
-        g2.fillOval(worldX + gp.tileSize / 4, worldY + gp.tileSize / 4, gp.tileSize / 2, gp.tileSize / 2);
+        g2.setColor(new Color(139, 69, 19));
+        g2.fillRect(worldX, worldY, gp.tileSize, gp.tileSize);
     }
 }

@@ -2,6 +2,7 @@ package main.entity;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.awt.Color;
 
 import main.core.GamePanel;
 import main.input.KeyHandler;
@@ -11,6 +12,7 @@ public class Player extends Entity {
 
     GamePanel gp;
     KeyHandler keyH;
+    public int score;
 
     public Player(GamePanel gp, KeyHandler keyH) {
         this.gp = gp;
@@ -25,6 +27,7 @@ public class Player extends Entity {
         y = 100;
         speed = 4;
         direction = "down";
+        score = 0;
     }
 
     public void getPlayerImage() {
@@ -99,6 +102,11 @@ public class Player extends Entity {
                 break;
         }
 
-        g2.drawImage(image, x, y, gp.tileSize, gp.tileSize, null);
+        if (image != null) {
+            g2.drawImage(image, x, y, gp.tileSize, gp.tileSize, null);
+        } else {
+            g2.setColor(Color.RED);
+            g2.fillRect(x, y, gp.tileSize, gp.tileSize);
+        }
     }
 }
