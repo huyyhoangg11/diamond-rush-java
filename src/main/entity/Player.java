@@ -1,11 +1,12 @@
+// Huy Hoàng làm
+
 package main.entity;
 
 import java.awt.Graphics2D;
-import java.awt.image.BufferedImage;
-import java.awt.Color;
 
 import main.core.GamePanel;
 import main.input.KeyHandler;
+import main.util.AssetManager;
 import main.util.Collision;
 
 public class Player extends Entity {
@@ -31,9 +32,14 @@ public class Player extends Entity {
     }
 
     public void getPlayerImage() {
-        // TODO: load sprite sau
-        // up1 = ImageIO.read(...);
-        // down1 = ...
+        down1 = AssetManager.playerDown;
+        down2 = AssetManager.playerDown;
+        up1 = AssetManager.playerDown;
+        up2 = AssetManager.playerDown;
+        left1 = AssetManager.playerDown;
+        left2 = AssetManager.playerDown;
+        right1 = AssetManager.playerDown;
+        right2 = AssetManager.playerDown;
     }
 
     public void update() {
@@ -50,13 +56,9 @@ public class Player extends Entity {
                 direction = "right";
             }
 
-            // reset collision
             collisionOn = false;
-
-            // check collision với tile
             Collision.checkTile(this, gp);
 
-            // nếu không va chạm thì di chuyển
             if (!collisionOn) {
                 switch (direction) {
                     case "up":
@@ -71,10 +73,11 @@ public class Player extends Entity {
                     case "right":
                         x += speed;
                         break;
+                    default:
+                        break;
                 }
             }
 
-            // animation
             spriteCounter++;
             if (spriteCounter > 10) {
                 spriteNum = (spriteNum == 1) ? 2 : 1;
@@ -84,29 +87,6 @@ public class Player extends Entity {
     }
 
     public void draw(Graphics2D g2) {
-
-        BufferedImage image = null;
-
-        switch (direction) {
-            case "up":
-                image = (spriteNum == 1) ? up1 : up2;
-                break;
-            case "down":
-                image = (spriteNum == 1) ? down1 : down2;
-                break;
-            case "left":
-                image = (spriteNum == 1) ? left1 : left2;
-                break;
-            case "right":
-                image = (spriteNum == 1) ? right1 : right2;
-                break;
-        }
-
-        if (image != null) {
-            g2.drawImage(image, x, y, gp.tileSize, gp.tileSize, null);
-        } else {
-            g2.setColor(Color.RED);
-            g2.fillRect(x, y, gp.tileSize, gp.tileSize);
-        }
+        g2.drawImage(AssetManager.playerDown, x, y, gp.tileSize, gp.tileSize, null);
     }
 }

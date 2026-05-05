@@ -1,9 +1,9 @@
 package main.object;
 
-import java.awt.Color;
 import java.awt.Graphics2D;
 
 import main.core.GamePanel;
+import main.util.AssetManager;
 
 public class Diamond extends GameObject {
 
@@ -19,7 +19,6 @@ public class Diamond extends GameObject {
         if (!active) {
             return;
         }
-        g2.setColor(Color.CYAN);
-        g2.fillOval(worldX + gp.tileSize / 4, worldY + gp.tileSize / 4, gp.tileSize / 2, gp.tileSize / 2);
+        g2.drawImage(AssetManager.diamond, worldX, worldY, gp.tileSize, gp.tileSize, null);
     }
 }
