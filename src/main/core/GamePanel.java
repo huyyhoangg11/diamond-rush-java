@@ -1,11 +1,13 @@
 package main.core;
 
 import main.config.GameConfig;
+import main.entity.Enemy;
 import main.entity.Player;
 import main.input.KeyHandler;
 import main.map.MapLoader;
 import main.object.Diamond;
 import main.object.GameObject;
+import main.util.AssetManager;
 
 import javax.swing.JPanel;
 import java.awt.Color;
@@ -15,23 +17,26 @@ import java.awt.Graphics2D;
 
 public class GamePanel extends JPanel {
 
-    // Sau này bạn sẽ khởi tạo MapLoader, Player, mảng Enemy, mảng Object ở đây
-	
-	public final int tileSize = GameConfig.TILE_SIZE;
+    public final int tileSize = GameConfig.TILE_SIZE;
 
-	// Player
-	KeyHandler keyH = new KeyHandler();
-    Player player = new Player(this, keyH);
-    public MapLoader mapLoader = new MapLoader(this);
+    KeyHandler keyH = new KeyHandler();
+    Player player;
+    Enemy enemy;
+    public MapLoader mapLoader;
     public GameObject[] objects = new GameObject[10];
 
-	
     public GamePanel() {
+        AssetManager.loadAssets();
+
         this.setPreferredSize(new Dimension(GameConfig.SCREEN_WIDTH, GameConfig.SCREEN_HEIGHT));
         this.setBackground(Color.BLACK);
-        this.setDoubleBuffered(true); // Tối ưu render
-        this.setFocusable(true); // Để nhận thao tác bàn phím
+        this.setDoubleBuffered(true);
+        this.setFocusable(true);
         this.addKeyListener(keyH);
+
+        player = new Player(this, keyH);
+        enemy = new Enemy(this, 12 * tileSize, 8 * tileSize);
+        mapLoader = new MapLoader(this);
 
         setupObjects();
     }
@@ -41,13 +46,10 @@ public class GamePanel extends JPanel {
         objects[1] = new Diamond(9 * tileSize, 8 * tileSize);
     }
 
-    // Hàm này sẽ được GameLoop gọi 60 lần/giây để cập nhật tọa độ, logic
     public void update() {
         player.update();
-        // enemy.update();
     }
 
-    // Hàm này sẽ được GameLoop gọi 60 lần/giây để vẽ hình ảnh mới
     @Override
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -61,6 +63,7 @@ public class GamePanel extends JPanel {
             }
         }
 
+        enemy.draw(g2);
         player.draw(g2);
 
         g2.dispose();

@@ -1,9 +1,9 @@
 package main.object;
 
-import java.awt.Color;
 import java.awt.Graphics2D;
 
 import main.core.GamePanel;
+import main.util.AssetManager;
 
 public class Rock extends GameObject {
 
@@ -19,7 +19,6 @@ public class Rock extends GameObject {
         if (!active) {
             return;
         }
-        g2.setColor(Color.DARK_GRAY);
-        g2.fillRect(worldX, worldY, gp.tileSize, gp.tileSize);
+        g2.drawImage(AssetManager.rock, worldX, worldY, gp.tileSize, gp.tileSize, null);
     }
 }
