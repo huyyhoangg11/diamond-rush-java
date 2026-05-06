@@ -10,6 +10,7 @@ public final class AssetManager {
 
     public static BufferedImage wall;
     public static BufferedImage dirt;
+    public static BufferedImage bush;
     public static BufferedImage diamond;
     public static BufferedImage rock;
     public static BufferedImage door;
@@ -28,6 +29,7 @@ public final class AssetManager {
 
         wall = loadImage("/sprites/wall.png");
         dirt = loadImage("/sprites/dirt.png");
+        bush = loadImage("/sprites/bush.png");
         diamond = loadImage("/sprites/diamond.png");
         rock = loadImage("/sprites/rock.png");
         door = loadImage("/sprites/door.png");
