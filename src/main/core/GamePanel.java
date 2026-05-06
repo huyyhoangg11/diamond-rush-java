@@ -27,6 +27,7 @@ public class GamePanel extends JPanel {
     private static final int OBJ_DIAMOND = 2;
     private static final int OBJ_DOOR = 3;
     private static final int OBJ_SNAKE = 4;
+    private static final int OBJ_SPAWN = 5;
 
     public final int tileSize = GameConfig.TILE_SIZE;
 
@@ -40,6 +41,10 @@ public class GamePanel extends JPanel {
     public int totalDiamonds;
     public boolean levelComplete;
     public boolean gameOver;
+    public int spawnRow = 1;
+    public int spawnCol = 1;
+    public int cameraX;
+    public int cameraY;
 
     public GamePanel() {
         AssetManager.loadAssets();
@@ -51,10 +56,18 @@ public class GamePanel extends JPanel {
         this.addKeyListener(keyH);
 
         mapLoader = new MapLoader(this);
-        player = new Player(this, keyH);
-        ui = new UI(this);
-
+        setupSpawnFromBackground();
         setupObjectsFromCsv();
+        player = new Player(this, keyH, spawnRow, spawnCol);
+        ui = new UI(this);
+        updateCamera();
+    }
+
+    private void setupSpawnFromBackground() {
+        if (mapLoader.getSpawnRow() >= 0 && mapLoader.getSpawnCol() >= 0) {
+            spawnRow = mapLoader.getSpawnRow();
+            spawnCol = mapLoader.getSpawnCol();
+        }
     }
 
     private void setupObjectsFromCsv() {
@@ -78,6 +91,10 @@ public class GamePanel extends JPanel {
                     case OBJ_SNAKE:
                         enemies.add(new Enemy(this, x, y, row % 2 == 0));
                         break;
+                    case OBJ_SPAWN:
+                        spawnRow = row;
+                        spawnCol = col;
+                        break;
                     case OBJ_EMPTY:
                     default:
                         break;
@@ -97,6 +114,7 @@ public class GamePanel extends JPanel {
             enemy.update();
         }
         checkEnemyContact();
+        updateCamera();
     }
 
     public GameObject getObjectAt(int row, int col) {
@@ -109,7 +127,7 @@ public class GamePanel extends JPanel {
     }
 
     public boolean isBlockedForRock(int row, int col) {
-        if (mapLoader.getTileAt(row, col) != MapLoader.DIRT) {
+        if (!mapLoader.isGround(row, col)) {
             return true;
         }
 
@@ -117,12 +135,11 @@ public class GamePanel extends JPanel {
     }
 
     public boolean isBlockedForEnemy(int row, int col) {
-        if (mapLoader.getTileAt(row, col) != MapLoader.DIRT) {
+        if (!mapLoader.isGround(row, col)) {
             return true;
         }
 
-        GameObject object = getObjectAt(row, col);
-        return object != null && object.collision;
+        return getObjectAt(row, col) != null;
     }
 
     public boolean hasPlayerAt(int row, int col) {
@@ -156,12 +173,31 @@ public class GamePanel extends JPanel {
         }
     }
 
+    public void updateCamera() {
+        int targetCameraX = player.x + tileSize / 2 - GameConfig.SCREEN_WIDTH / 2;
+        int targetCameraY = player.y + tileSize / 2 - GameConfig.SCREEN_HEIGHT / 2;
+        int maxCameraX = Math.max(0, mapLoader.getCols() * tileSize - GameConfig.SCREEN_WIDTH);
+        int maxCameraY = Math.max(0, mapLoader.getRows() * tileSize - GameConfig.SCREEN_HEIGHT);
+
+        cameraX = clamp(targetCameraX, 0, maxCameraX);
+        cameraY = clamp(targetCameraY, 0, maxCameraY);
+    }
+
+    private int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(value, max));
+    }
+
     @Override
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
 
+        updateCamera();
+        g2.translate(-cameraX, -cameraY);
         mapLoader.draw(g2);
+        if (mapLoader.getTileAt(spawnRow, spawnCol) != MapLoader.SPAWN) {
+            g2.drawImage(AssetManager.spawn, spawnCol * tileSize, spawnRow * tileSize, tileSize, tileSize, null);
+        }
 
         for (GameObject object : objects) {
             if (object != null && object.isActive()) {
@@ -173,6 +209,7 @@ public class GamePanel extends JPanel {
             enemy.draw(g2);
         }
         player.draw(g2);
+        g2.translate(cameraX, cameraY);
         ui.draw(g2);
 
         g2.dispose();

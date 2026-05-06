@@ -18,6 +18,7 @@ public class MapLoader {
     public static final int DIRT = 0;
     public static final int WALL = 2;
     public static final int BUSH = 3;
+    public static final int SPAWN = 5;
 
     private final GamePanel gp;
     private final int[][] backgroundData;
@@ -50,6 +51,33 @@ public class MapLoader {
 
     public boolean isWall(int row, int col) {
         return getTileAt(row, col) == WALL;
+    }
+
+    public boolean isGround(int row, int col) {
+        int tile = getTileAt(row, col);
+        return tile == DIRT || tile == SPAWN;
+    }
+
+    public int getSpawnRow() {
+        for (int row = 0; row < backgroundData.length; row++) {
+            for (int col = 0; col < backgroundData[row].length; col++) {
+                if (backgroundData[row][col] == SPAWN) {
+                    return row;
+                }
+            }
+        }
+        return -1;
+    }
+
+    public int getSpawnCol() {
+        for (int row = 0; row < backgroundData.length; row++) {
+            for (int col = 0; col < backgroundData[row].length; col++) {
+                if (backgroundData[row][col] == SPAWN) {
+                    return col;
+                }
+            }
+        }
+        return -1;
     }
 
     public static int[][] loadCsvMap(String resourcePath) {
@@ -114,6 +142,8 @@ public class MapLoader {
                 return AssetManager.wall;
             case BUSH:
                 return AssetManager.bush;
+            case SPAWN:
+                return AssetManager.spawn;
             case DIRT:
             default:
                 return AssetManager.dirt;

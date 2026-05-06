@@ -15,8 +15,6 @@ import main.util.AssetManager;
 
 public class Player extends Entity {
 
-    private static final int START_COL = 1;
-    private static final int START_ROW = 1;
     private static final int MOVE_COOLDOWN_FRAMES = 8;
 
     GamePanel gp;
@@ -25,18 +23,22 @@ public class Player extends Entity {
     public int lives;
     private int moveCooldown;
     private int invincibleFrames;
+    private final int startRow;
+    private final int startCol;
 
-    public Player(GamePanel gp, KeyHandler keyH) {
+    public Player(GamePanel gp, KeyHandler keyH, int startRow, int startCol) {
         this.gp = gp;
         this.keyH = keyH;
+        this.startRow = startRow;
+        this.startCol = startCol;
 
         setDefaultValues();
         getPlayerImage();
     }
 
     public void setDefaultValues() {
-        x = START_COL * gp.tileSize;
-        y = START_ROW * gp.tileSize;
+        x = startCol * gp.tileSize;
+        y = startRow * gp.tileSize;
         speed = gp.tileSize;
         direction = "down";
         score = 0;
@@ -160,8 +162,8 @@ public class Player extends Entity {
             return;
         }
 
-        x = START_COL * gp.tileSize;
-        y = START_ROW * gp.tileSize;
+        x = startCol * gp.tileSize;
+        y = startRow * gp.tileSize;
         invincibleFrames = 60;
     }
 
