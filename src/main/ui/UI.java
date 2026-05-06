@@ -5,6 +5,7 @@ import java.awt.Font;
 import java.awt.Graphics2D;
 
 import main.core.GamePanel;
+import main.util.AssetManager;
 
 public class UI {
     private final GamePanel gp;
@@ -23,24 +24,28 @@ public class UI {
 
     private void drawHealth(Graphics2D g2) {
         int x = 16;
-        int y = gp.getHeight() - 38;
+        int y = gp.getHeight() - 44;
+        g2.drawImage(AssetManager.uiPlayer, x, y - 6, 36, 36, null);
         g2.setColor(Color.WHITE);
-        g2.drawString("HP", x, y + 22);
+        g2.drawString("HP", x + 44, y + 20);
 
         for (int i = 0; i < 3; i++) {
             g2.setColor(i < gp.player.lives ? Color.RED : Color.DARK_GRAY);
-            g2.fillOval(x + 44 + (i * 30), y, 24, 24);
+            g2.fillOval(x + 84 + (i * 30), y, 24, 24);
             g2.setColor(Color.WHITE);
-            g2.drawOval(x + 44 + (i * 30), y, 24, 24);
+            g2.drawOval(x + 84 + (i * 30), y, 24, 24);
         }
     }
 
     private void drawDiamondCounter(Graphics2D g2) {
-        String text = "Diamonds: " + gp.player.score + "/" + gp.totalDiamonds;
-        int x = gp.getWidth() - 190;
-        int y = gp.getHeight() - 16;
+        String text = gp.player.score + "/" + gp.totalDiamonds;
+        int y = gp.getHeight() - 44;
+        int textWidth = g2.getFontMetrics().stringWidth(text);
+        int x = gp.getWidth() - textWidth - 58;
+
+        g2.drawImage(AssetManager.uiDiamond, x, y - 6, 36, 36, null);
         g2.setColor(Color.WHITE);
-        g2.drawString(text, x, y);
+        g2.drawString(text, x + 42, y + 20);
     }
 
     private void drawMessages(Graphics2D g2) {
