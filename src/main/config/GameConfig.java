@@ -7,7 +7,7 @@ public class GameConfig {
     public static final int TILE_SIZE = ORIGINAL_TILE_SIZE * SCALE; // 48x48 pixels
 
     // Kích thước màn hình theo map 20x20
-    public static final int MAX_SCREEN_COL = 20;
+    public static final int MAX_SCREEN_COL = 25;
     public static final int MAX_SCREEN_ROW = 20;
     public static final int SCREEN_WIDTH = TILE_SIZE * MAX_SCREEN_COL;  // 960 pixels
     public static final int SCREEN_HEIGHT = TILE_SIZE * MAX_SCREEN_ROW; // 960 pixels
