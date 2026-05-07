@@ -1,5 +1,4 @@
 // Huy Hoàng làm
-
 package main.entity;
 
 import java.awt.Graphics2D;
