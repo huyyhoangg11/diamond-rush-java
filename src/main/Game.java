@@ -9,7 +9,7 @@ public class Game {
         JFrame window = new JFrame();
         window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         window.setResizable(false);
-        window.setTitle("Diamond Rush");
+        window.setTitle("Diamond Rush 2D");
 
         GamePanel gamePanel = new GamePanel();
         window.add(gamePanel);
