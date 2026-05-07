@@ -30,15 +30,15 @@ public final class AssetManager {
             return;
         }
 
-        wall = loadImage("/sprites/wall.png");
-        dirt = loadImage("/sprites/dirt.png");
-        bush = loadImage("/sprites/bush.png");
-        diamond = loadImage("/sprites/diamond.png");
-        rock = loadImage("/sprites/rock.png");
-        door = loadImage("/sprites/door.png");
-        playerDown = loadImage("/sprites/player_down.png");
-        snake = loadImage("/sprites/snake.png");
-        spawn = loadImageOrDefault("/sprites/spawn.png", dirt);
+        wall = loadImage("/tiles/wall.png");
+        dirt = loadImage("/tiles/dirt.png");
+        bush = loadImage("/tiles/bush.png");
+        diamond = loadImage("/objects/diamond.png");
+        rock = loadImage("/objects/rock.png");
+        door = loadImage("/objects/door.png");
+        playerDown = loadImage("/characters/player_down.png");
+        snake = loadImage("/objects/snake.png");
+        spawn = loadImageOrDefault("/objects/spawn.png", dirt);
         uiPlayer = loadImageOrDefault("/ui/player.png", playerDown);
         uiDiamond = loadImageOrDefault("/ui/diamond.png", diamond);
 
