@@ -1,18 +1,21 @@
 package main.ui;
 
-import main.input.KeyHandler;
-import java.awt.*;
 import main.core.GamePanel;
+import main.input.KeyHandler;
+
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.GradientPaint;
+import java.awt.Graphics2D;
 
 public class MenuScreen implements Screen {
 
     private final GameStateManager gsm;
     private int selectedOption = 0;
-    private final String[] options = {"Start Game", "How To Play", "Quit"};
-
     private boolean keyWasDown = false;
-    private int blinkCounter   = 0;
-    private boolean blinkOn    = true;
+    private int blinkCounter = 0;
+    private boolean blinkOn = true;
 
     public MenuScreen(GameStateManager gsm) {
         this.gsm = gsm;
@@ -21,33 +24,35 @@ public class MenuScreen implements Screen {
     @Override
     public void update(KeyHandler key) {
         boolean anyKey = key.upPressed || key.downPressed || key.enterPressed;
+        GamePanel gp = gsm.getGamePanel();
+        int optionCount = gp.getLevelCount() + 2;
 
         if (anyKey && !keyWasDown) {
             if (key.upPressed) {
-                selectedOption = (selectedOption - 1 + options.length) % options.length;
+                selectedOption = (selectedOption - 1 + optionCount) % optionCount;
             } else if (key.downPressed) {
-                selectedOption = (selectedOption + 1) % options.length;
+                selectedOption = (selectedOption + 1) % optionCount;
             } else if (key.enterPressed) {
-                handleSelection();
+                handleSelection(gp);
             }
         }
         keyWasDown = anyKey;
 
-        // Nhấp nháy mũi tên mỗi 30 frame (~0.5 giây ở 60fps)
         if (++blinkCounter >= 30) {
-            blinkOn      = !blinkOn;
+            blinkOn = !blinkOn;
             blinkCounter = 0;
         }
     }
 
-    private void handleSelection() {
-        switch (selectedOption) {
-            case 0 -> {
-                gsm.getGamePanel().resetGame();
-                gsm.setState(GameState.PLAYING);
-            }
-            case 1 -> gsm.setState(GameState.HOW_TO_PLAY);
-            case 2 -> System.exit(0);
+    private void handleSelection(GamePanel gp) {
+        int levelCount = gp.getLevelCount();
+        if (selectedOption < levelCount) {
+            gp.selectedLevelIndex = selectedOption;
+            gp.startSelectedLevel();
+        } else if (selectedOption == levelCount) {
+            gsm.setState(GameState.HOW_TO_PLAY);
+        } else {
+            System.exit(0);
         }
     }
 
@@ -57,64 +62,98 @@ public class MenuScreen implements Screen {
         int w = gp.getWidth();
         int h = gp.getHeight();
 
-        // --- Nền gradient tím đậm ---
         GradientPaint bg = new GradientPaint(0, 0, new Color(8, 4, 22),
-                                              0, h, new Color(25, 12, 55));
+                0, h, new Color(25, 12, 55));
         g2.setPaint(bg);
         g2.fillRect(0, 0, w, h);
 
-        // --- Viền trang trí ---
         g2.setStroke(new BasicStroke(2f));
         g2.setColor(new Color(255, 190, 0, 70));
         g2.drawRect(14, 14, w - 28, h - 28);
 
-        // --- Tiêu đề với shadow ---
         g2.setFont(new Font("Arial Black", Font.BOLD, 64));
         String title = "DIAMOND RUSH";
-        int titleX   = getCenterX(g2, title, w);
-        // Shadow
+        int titleX = getCenterX(g2, title, w);
         g2.setColor(new Color(140, 70, 0));
-        g2.drawString(title, titleX + 4, h / 5 + 4);
-        // Chữ chính
+        g2.drawString(title, titleX + 4, h / 6 + 4);
         g2.setColor(new Color(255, 200, 0));
-        g2.drawString(title, titleX, h / 5);
+        g2.drawString(title, titleX, h / 6);
 
-        // --- Subtitle ---
-        g2.setFont(new Font("Arial", Font.ITALIC, 19));
-        g2.setColor(new Color(170, 170, 220));
-        String sub = "Collect diamonds — escape the cave!";
-        g2.drawString(sub, getCenterX(g2, sub, w), h / 5 + 48);
+        g2.setFont(new Font("Arial", Font.BOLD, 24));
+        String prompt = "SELECT MAP";
+        g2.setColor(new Color(170, 210, 255));
+        g2.drawString(prompt, getCenterX(g2, prompt, w), h / 6 + 52);
 
-        // --- Các lựa chọn ---
-        g2.setFont(new Font("Arial Black", Font.BOLD, 30));
-        int baseY = h / 2;
-        for (int i = 0; i < options.length; i++) {
-            int oy = baseY + i * 58;
-            if (i == selectedOption) {
-                // Highlight background
-                int tw = g2.getFontMetrics().stringWidth(options[i]);
-                g2.setColor(new Color(255, 200, 0, 35));
-                g2.fillRoundRect(w / 2 - tw / 2 - 24, oy - 32, tw + 48, 42, 10, 10);
-                // Mũi tên nhấp nháy
-                if (blinkOn) {
-                    g2.setColor(new Color(255, 200, 0));
-                    g2.drawString("►", w / 2 - tw / 2 - 48, oy);
-                }
-                g2.setColor(new Color(255, 215, 0));
-            } else {
-                g2.setColor(new Color(155, 155, 195));
-            }
-            g2.drawString(options[i], getCenterX(g2, options[i], w), oy);
-        }
+        drawLevelOptions(g2, gp, w, h);
+        drawFooterOptions(g2, gp, w, h);
 
-        // --- Gợi ý phím ---
         g2.setFont(new Font("Arial", Font.PLAIN, 15));
-        g2.setColor(new Color(100, 100, 135));
-        String hint = "Arrow Keys  Move       Enter  Select";
+        g2.setColor(new Color(130, 130, 170));
+        String hint = "W/S or Arrow Keys: choose      Enter: select      R: reset checkpoint in game";
         g2.drawString(hint, getCenterX(g2, hint, w), h - 28);
+    }
+
+    private void drawLevelOptions(Graphics2D g2, GamePanel gp, int w, int h) {
+        int levelCount = gp.getLevelCount();
+        int columns = Math.min(4, Math.max(1, levelCount));
+        int cellW = 185;
+        int cellH = 118;
+        int gap = 22;
+        int gridW = columns * cellW + (columns - 1) * gap;
+        int startX = (w - gridW) / 2;
+        int startY = h / 3;
+
+        for (int i = 0; i < levelCount; i++) {
+            int row = i / columns;
+            int col = i % columns;
+            int x = startX + col * (cellW + gap);
+            int y = startY + row * (cellH + gap);
+            boolean selected = selectedOption == i;
+            boolean unlocked = gp.isLevelUnlocked(i);
+            boolean completed = gp.isLevelCompleted(i);
+
+            g2.setColor(selected ? new Color(255, 200, 0, 45) : new Color(255, 255, 255, 18));
+            g2.fillRoundRect(x, y, cellW, cellH, 12, 12);
+            g2.setColor(selected ? new Color(255, 215, 0) : new Color(255, 255, 255, 70));
+            g2.drawRoundRect(x, y, cellW, cellH, 12, 12);
+
+            g2.setFont(new Font("Arial Black", Font.BOLD, 26));
+            g2.setColor(unlocked ? Color.WHITE : Color.GRAY);
+            String name = gp.getLevelName(i);
+            g2.drawString(name, getCenterXInBox(g2, name, x, cellW), y + 44);
+
+            g2.setFont(new Font("Arial", Font.BOLD, 18));
+            String status = completed ? "COMPLETED" : unlocked ? "UNLOCKED" : "LOCKED";
+            g2.setColor(completed ? new Color(100, 245, 130) : unlocked ? new Color(140, 210, 255) : Color.GRAY);
+            g2.drawString(status, getCenterXInBox(g2, status, x, cellW), y + 82);
+
+            if (selected && blinkOn) {
+                g2.setColor(new Color(255, 215, 0));
+                g2.drawString(">", x - 24, y + 66);
+            }
+        }
+    }
+
+    private void drawFooterOptions(Graphics2D g2, GamePanel gp, int w, int h) {
+        int levelCount = gp.getLevelCount();
+        String[] options = {"How To Play", "Quit"};
+        g2.setFont(new Font("Arial Black", Font.BOLD, 27));
+        int baseY = h - 150;
+
+        for (int i = 0; i < options.length; i++) {
+            int optionIndex = levelCount + i;
+            boolean selected = selectedOption == optionIndex;
+            String text = (selected && blinkOn ? "> " : "  ") + options[i];
+            g2.setColor(selected ? new Color(255, 215, 0) : new Color(165, 165, 205));
+            g2.drawString(text, getCenterX(g2, text, w), baseY + i * 42);
+        }
     }
 
     private int getCenterX(Graphics2D g2, String text, int w) {
         return (w - g2.getFontMetrics().stringWidth(text)) / 2;
+    }
+
+    private int getCenterXInBox(Graphics2D g2, String text, int x, int width) {
+        return x + (width - g2.getFontMetrics().stringWidth(text)) / 2;
     }
 }

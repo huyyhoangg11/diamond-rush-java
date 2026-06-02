@@ -29,6 +29,25 @@ public class Enemy extends Entity {
         return x / gp.tileSize;
     }
 
+    public int getMoveDirection() {
+        return moveDirection;
+    }
+
+    public int getMoveCounter() {
+        return moveCounter;
+    }
+
+    public boolean isHorizontalMovement() {
+        return horizontalMovement;
+    }
+
+    public void restoreState(int x, int y, int moveDirection, int moveCounter) {
+        this.x = x;
+        this.y = y;
+        this.moveDirection = moveDirection;
+        this.moveCounter = moveCounter;
+    }
+
     @Override
     public void update() {
         moveCounter++;

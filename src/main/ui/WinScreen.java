@@ -87,8 +87,7 @@ public class WinScreen implements Screen {
         g2.setFont(new Font("Arial", Font.BOLD, 23));
         g2.setColor(new Color(255, 255, 210, a));
         int col = gsm.getGamePanel().player.score;
-        int tot = gsm.getGamePanel().totalDiamonds;
-        String stat  = "Collected " + col + " / " + tot + " diamonds!";
+        String stat  = "Collected " + col + " diamonds!";
         g2.drawString(stat, getCenterX(g2, stat, w), h / 2 + 62);
 
         if (a > 150) {

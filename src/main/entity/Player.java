@@ -15,6 +15,7 @@ import main.util.AssetManager;
 public class Player extends Entity {
 
     private static final int MOVE_COOLDOWN_FRAMES = 8;
+    private static final int INVINCIBLE_FRAMES_AFTER_HIT = 90;
 
     GamePanel gp;
     KeyHandler keyH;
@@ -44,6 +45,21 @@ public class Player extends Entity {
         lives = 3;
         moveCooldown = 0;
         invincibleFrames = 0;
+    }
+
+    public void restoreState(int row, int col, int score, int lives) {
+        x = col * gp.tileSize;
+        y = row * gp.tileSize;
+        this.score = score;
+        this.lives = lives;
+        moveCooldown = 0;
+        invincibleFrames = 0;
+    }
+
+    public void moveToSpawn() {
+        x = startCol * gp.tileSize;
+        y = startRow * gp.tileSize;
+        moveCooldown = 0;
     }
 
     public int getRow() {
@@ -114,9 +130,6 @@ public class Player extends Entity {
                 return false;
             }
         } else if (object instanceof Door) {
-            if (score < gp.totalDiamonds) {
-                return false;
-            }
             gp.levelComplete = true;
         } else if (object instanceof Diamond) {
             object.setActive(false);
@@ -132,21 +145,32 @@ public class Player extends Entity {
     }
 
     private boolean pushRock(Rock rock, int rockRow, int rockCol) {
-        int deltaCol;
+        int deltaRow = 0;
+        int deltaCol = 0;
         if ("left".equals(direction)) {
             deltaCol = -1;
         } else if ("right".equals(direction)) {
             deltaCol = 1;
+        } else if ("up".equals(direction)) {
+            deltaRow = -1;
+        } else if ("down".equals(direction)) {
+            deltaRow = 1;
         } else {
             return false;
         }
 
+        int newRow = rockRow + deltaRow;
         int newCol = rockCol + deltaCol;
-        if (gp.mapLoader.getTileAt(rockRow, newCol) == MapLoader.WALL || gp.getObjectAt(rockRow, newCol) != null) {
+        int targetTile = gp.mapLoader.getTileAt(newRow, newCol);
+        boolean canPushIntoTile = targetTile == MapLoader.DIRT
+                || targetTile == MapLoader.BUSH
+                || targetTile == MapLoader.SPAWN;
+        if (!canPushIntoTile || gp.getObjectAt(newRow, newCol) != null) {
             return false;
         }
 
-        rock.setGridPosition(gp, rockRow, newCol);
+        rock.setGridPosition(gp, newRow, newCol);
+        gp.mapLoader.clearBushAt(newRow, newCol);
         return true;
     }
 
@@ -161,12 +185,13 @@ public class Player extends Entity {
             return;
         }
 
-        x = startCol * gp.tileSize;
-        y = startRow * gp.tileSize;
-        invincibleFrames = 60;
+        invincibleFrames = INVINCIBLE_FRAMES_AFTER_HIT;
     }
 
     public void draw(Graphics2D g2) {
+        if (invincibleFrames > 0 && (invincibleFrames / 6) % 2 == 0) {
+            return;
+        }
         g2.drawImage(AssetManager.playerDown, x, y, gp.tileSize, gp.tileSize, null);
     }
 }

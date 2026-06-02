@@ -1,6 +1,7 @@
 package main.ui;
 
 import main.core.GamePanel;
+import main.util.AssetManager;
 import java.awt.*;
 
 /**
@@ -16,8 +17,8 @@ public class UI {
     private final GamePanel gp;
     public GameStateManager gsm;
 
-    private final Font fontHudLabel = new Font("Arial", Font.BOLD, 14);
-    private final Font fontHudValue = new Font("Arial Black", Font.BOLD, 22);
+    private final Font fontHudValue = new Font("Arial Black", Font.BOLD, 24);
+    private final Font fontHeart = new Font("Dialog", Font.BOLD, 28);
 
     public UI(GamePanel gp) {
         this.gp = gp;
@@ -47,56 +48,39 @@ public class UI {
     // =========================================================
 
     private void drawHUD(Graphics2D g2) {
-        drawDiamondCounter(g2);
-        drawLives(g2);
+        int panelW = 178;
+        int panelH = 92;
+        int x = gp.getWidth() - panelW - 16;
+        int y = gp.getHeight() - panelH - 16;
+
+        g2.setColor(new Color(0, 0, 0, 175));
+        g2.fillRoundRect(x, y, panelW, panelH, 14, 14);
+
+        g2.drawImage(AssetManager.uiPlayer, x + 14, y + 13, 34, 34, null);
+        drawLives(g2, x + 58, y + 39);
+        drawDiamondCounter(g2, x + 15, y + 52, panelW - 30);
     }
 
-    private void drawDiamondCounter(Graphics2D g2) {
-        // Nền pill mờ
-        g2.setColor(new Color(0, 0, 0, 170));
-        g2.fillRoundRect(8, 8, 190, 48, 14, 14);
-
-        // Nhãn nhỏ
-        g2.setFont(fontHudLabel);
-        g2.setColor(new Color(140, 210, 255));
-        g2.drawString("DIAMONDS", 46, 22);
-
-        // Icon
-        g2.setFont(new Font("Dialog", Font.BOLD, 26));
-        g2.setColor(new Color(80, 200, 255));
-        g2.drawString("◆", 14, 46);
-
-        // Số đếm — vàng nếu đủ, trắng nếu chưa đủ
+    private void drawDiamondCounter(Graphics2D g2, int x, int y, int width) {
         int collected = gp.player.score;
-        int total     = gp.totalDiamonds;
-        boolean done  = collected >= total;
+        String text = "x " + collected;
 
+        g2.drawImage(AssetManager.uiDiamond, x, y + 4, 30, 30, null);
         g2.setFont(fontHudValue);
-        g2.setColor(done ? new Color(255, 215, 0) : Color.WHITE);
-        g2.drawString(collected + " / " + total, 46, 46);
+        g2.setColor(Color.WHITE);
+        int textX = x + width - g2.getFontMetrics().stringWidth(text);
+        g2.drawString(text, textX, y + 30);
     }
 
-    private void drawLives(Graphics2D g2) {
-        int w = gp.getWidth();
+    private void drawLives(Graphics2D g2, int x, int baselineY) {
         int lives = gp.player.lives;
 
-        // Nền pill mờ bên phải
-        g2.setColor(new Color(0, 0, 0, 170));
-        g2.fillRoundRect(w - 128, 8, 120, 48, 14, 14);
-
-        // Nhãn
-        g2.setFont(fontHudLabel);
-        g2.setColor(new Color(255, 180, 180));
-        g2.drawString("MẠNG", w - 100, 22);
-
-        // Trái tim theo số mạng (tối đa 3)
-        g2.setFont(new Font("Dialog", Font.BOLD, 26));
+        g2.setFont(fontHeart);
         StringBuilder hearts = new StringBuilder();
         for (int i = 0; i < 3; i++) {
             hearts.append(i < lives ? "♥" : "♡");
         }
-        // Đỏ tươi khi còn nhiều mạng, đỏ đậm khi còn 1
         g2.setColor(lives > 1 ? new Color(255, 80, 80) : new Color(220, 20, 20));
-        g2.drawString(hearts.toString(), w - 118, 46);
+        g2.drawString(hearts.toString(), x, baselineY);
     }
 }

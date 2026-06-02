@@ -47,10 +47,12 @@ public class HowToPlayScreen implements Screen {
         	    {"S / DOWN",     "Move down"},
         	    {"A / LEFT",     "Move left"},
         	    {"D / RIGHT",    "Move right"},
-        	    {"P / ESC",      "Pause / Resume"},
-        	    {"Enter",        "Confirm in menu"},
-        	    {"Diamond",      "Collect all to unlock the door"},
-        	    {"Door",         "Exit when diamonds are complete"},
+                {"P / ESC",      "Pause / Resume"},
+                {"R",            "Reset to the latest spawn checkpoint"},
+                {"Enter",        "Confirm in menu"},
+                {"W / S",        "Move selection in menus"},
+                {"Diamond",      "Collect for points"},
+        	    {"Door",         "Reach the exit to finish the level"},
         	    {"Snake",        "Enemy — avoid! Lose 1 life on touch"},
         	    {"Rock",         "Can be pushed left or right"},
         	};
@@ -82,7 +84,7 @@ public class HowToPlayScreen implements Screen {
         // Mục tiêu
         g2.setFont(new Font("Arial", Font.BOLD, 17));
         g2.setColor(new Color(150, 255, 170));
-        String goal = "GOAL: Collect all diamonds, then reach the exit door";
+        String goal = "GOAL: Reach the exit door";
         g2.drawString(goal, getCenterX(g2, goal, w), lineY + 35);
 
         // Quay về

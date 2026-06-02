@@ -7,8 +7,9 @@ public class KeyHandler implements KeyListener {
 
     public boolean upPressed, downPressed, leftPressed, rightPressed;
     public boolean enterPressed;
-    public boolean escPressed;      // thêm mới — dùng cho Pause/Back
-    public boolean pPressed;        // thêm mới — phím P cũng pause
+    public boolean escPressed;
+    public boolean pPressed;
+    public boolean rPressed;
 
     @Override
     public void keyTyped(KeyEvent e) {}
@@ -24,6 +25,7 @@ public class KeyHandler implements KeyListener {
             case KeyEvent.VK_ENTER                -> enterPressed = true;
             case KeyEvent.VK_ESCAPE               -> escPressed   = true;
             case KeyEvent.VK_P                    -> pPressed     = true;
+            case KeyEvent.VK_R                    -> rPressed     = true;
         }
     }
 
@@ -38,6 +40,21 @@ public class KeyHandler implements KeyListener {
             case KeyEvent.VK_ENTER                -> enterPressed = false;
             case KeyEvent.VK_ESCAPE               -> escPressed   = false;
             case KeyEvent.VK_P                    -> pPressed     = false;
+            case KeyEvent.VK_R                    -> rPressed     = false;
         }
+    }
+
+    public void clearMovementKeys() {
+        upPressed = false;
+        downPressed = false;
+        leftPressed = false;
+        rightPressed = false;
+    }
+
+    public void clearActionKeys() {
+        enterPressed = false;
+        escPressed = false;
+        pPressed = false;
+        rPressed = false;
     }
 }

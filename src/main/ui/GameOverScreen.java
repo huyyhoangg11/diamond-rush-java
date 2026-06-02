@@ -52,15 +52,14 @@ public class GameOverScreen implements Screen {
         g2.setFont(new Font("Arial", Font.BOLD, 24));
         g2.setColor(new Color(255, 255, 255, a));
         int col = gsm.getGamePanel().player.score;
-        int tot = gsm.getGamePanel().totalDiamonds;
-        String stat  = "Diamonds collected: " + col + " / " + tot;
+        String stat  = "Diamonds collected: " + col;
         g2.drawString(stat, getCenterX(g2, stat, w), h / 2 + 10);
 
         // Gợi ý — chỉ hiện sau khi fade xong
         if (a > 150) {
             g2.setFont(new Font("Arial", Font.PLAIN, 19));
             g2.setColor(new Color(170, 170, 170, a));
-            String hint  = "Press Enter to return to Menu";
+            String hint  = "Press Enter to return to Menu      R to reset checkpoint";
             g2.drawString(hint, getCenterX(g2, hint, w), h * 2 / 3);
         }
     }

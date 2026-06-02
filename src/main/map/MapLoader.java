@@ -21,11 +21,15 @@ public class MapLoader {
     public static final int SPAWN = 5;
 
     private final GamePanel gp;
-    private final int[][] backgroundData;
+    private int[][] backgroundData;
 
     public MapLoader(GamePanel gp) {
+        this(gp, "/maps/map01_background.csv");
+    }
+
+    public MapLoader(GamePanel gp, String backgroundPath) {
         this.gp = gp;
-        this.backgroundData = loadCsvMap("/maps/map01_background.csv");
+        this.backgroundData = loadCsvMap(backgroundPath);
     }
 
     public int getRows() {
@@ -47,6 +51,22 @@ public class MapLoader {
         if (getTileAt(row, col) == BUSH) {
             backgroundData[row][col] = DIRT;
         }
+    }
+
+    public int[][] copyBackgroundData() {
+        return copyMap(backgroundData);
+    }
+
+    public void restoreBackgroundData(int[][] data) {
+        backgroundData = copyMap(data);
+    }
+
+    private static int[][] copyMap(int[][] source) {
+        int[][] copy = new int[source.length][];
+        for (int row = 0; row < source.length; row++) {
+            copy[row] = source[row].clone();
+        }
+        return copy;
     }
 
     public boolean isWall(int row, int col) {

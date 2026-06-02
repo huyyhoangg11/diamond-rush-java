@@ -1,11 +1,18 @@
 package main.ui;
 
 import main.input.KeyHandler;
-import java.awt.*;
+
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics2D;
 
 public class PauseScreen implements Screen {
 
     private final GameStateManager gsm;
+    private final String[] options = {"Continue", "Reset to Spawn", "Quit Game"};
+    private int selectedOption = 0;
+    private boolean keyWasDown = false;
 
     public PauseScreen(GameStateManager gsm) {
         this.gsm = gsm;
@@ -13,7 +20,30 @@ public class PauseScreen implements Screen {
 
     @Override
     public void update(KeyHandler key) {
-        // Toggle đã xử lý trong GameStateManager.update() — không làm gì thêm
+        boolean anyKey = key.upPressed || key.downPressed || key.enterPressed || key.rPressed;
+
+        if (anyKey && !keyWasDown) {
+            if (key.upPressed) {
+                selectedOption = (selectedOption - 1 + options.length) % options.length;
+            } else if (key.downPressed) {
+                selectedOption = (selectedOption + 1) % options.length;
+            } else if (key.rPressed) {
+                gsm.getGamePanel().resetToCheckpoint();
+            } else if (key.enterPressed) {
+                handleSelection();
+            }
+        }
+        keyWasDown = anyKey;
+    }
+
+    private void handleSelection() {
+        switch (selectedOption) {
+            case 0 -> gsm.setState(GameState.PLAYING);
+            case 1 -> gsm.getGamePanel().resetToCheckpoint();
+            case 2 -> gsm.getGamePanel().quitToMenuFromPause();
+            default -> {
+            }
+        }
     }
 
     @Override
@@ -21,13 +51,13 @@ public class PauseScreen implements Screen {
         int w = gsm.getGamePanel().getWidth();
         int h = gsm.getGamePanel().getHeight();
 
-        // Lớp phủ tối lên trên gameplay
         g2.setColor(new Color(0, 0, 0, 155));
         g2.fillRect(0, 0, w, h);
 
-        // Hộp trung tâm
-        int bw = 360, bh = 185;
-        int bx = (w - bw) / 2, by = (h - bh) / 2;
+        int bw = 430;
+        int bh = 270;
+        int bx = (w - bw) / 2;
+        int by = (h - bh) / 2;
 
         g2.setColor(new Color(18, 8, 42, 235));
         g2.fillRoundRect(bx, by, bw, bh, 22, 22);
@@ -36,26 +66,24 @@ public class PauseScreen implements Screen {
         g2.setColor(new Color(255, 200, 0));
         g2.drawRoundRect(bx, by, bw, bh, 22, 22);
 
-        // Tiêu đề
         g2.setFont(new Font("Arial Black", Font.BOLD, 38));
         g2.setColor(Color.WHITE);
         String title = "PAUSED";
-        g2.drawString(title, getCenterX(g2, title, w), by + 68);
+        g2.drawString(title, getCenterX(g2, title, w), by + 58);
 
-        // Gợi ý
-        g2.setFont(new Font("Arial", Font.PLAIN, 18));
-        g2.setColor(new Color(195, 195, 195));
-        String hint = "Press P or ESC to resume";
-        g2.drawString(hint, getCenterX(g2, hint, w), by + 112);
+        g2.setFont(new Font("Arial Black", Font.BOLD, 24));
+        for (int i = 0; i < options.length; i++) {
+            String text = (selectedOption == i ? "> " : "  ") + options[i];
+            g2.setColor(selectedOption == i ? new Color(255, 215, 0) : new Color(195, 195, 215));
+            g2.drawString(text, getCenterX(g2, text, w), by + 112 + i * 42);
+        }
 
-        // Thông tin hiện tại
         g2.setFont(new Font("Arial", Font.BOLD, 15));
         g2.setColor(new Color(130, 210, 255));
-        int col  = gsm.getGamePanel().player.score;
-        int tot  = gsm.getGamePanel().totalDiamonds;
+        int col = gsm.getGamePanel().player.score;
         int live = gsm.getGamePanel().player.lives;
-        String info  = "Diamonds: " + col + "/" + tot + "      Lives: " + live;
-        g2.drawString(info, getCenterX(g2, info, w), by + 152);
+        String info = "Diamonds: " + col + "      Lives: " + live + "      R: reset";
+        g2.drawString(info, getCenterX(g2, info, w), by + 238);
     }
 
     private int getCenterX(Graphics2D g2, String text, int w) {
