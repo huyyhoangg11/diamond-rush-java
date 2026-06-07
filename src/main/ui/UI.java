@@ -49,7 +49,7 @@ public class UI {
 
     private void drawHUD(Graphics2D g2) {
         int panelW = 178;
-        int panelH = 92;
+        int panelH = gp.hasHammer() ? 132 : 92;
         int x = gp.getWidth() - panelW - 16;
         int y = gp.getHeight() - panelH - 16;
 
@@ -59,6 +59,9 @@ public class UI {
         g2.drawImage(AssetManager.uiPlayer, x + 14, y + 13, 34, 34, null);
         drawLives(g2, x + 58, y + 39);
         drawDiamondCounter(g2, x + 15, y + 52, panelW - 30);
+        if (gp.hasHammer()) {
+            drawHammerStatus(g2, x + 15, y + 92, panelW - 30);
+        }
     }
 
     private void drawDiamondCounter(Graphics2D g2, int x, int y, int width) {
@@ -82,5 +85,15 @@ public class UI {
         }
         g2.setColor(lives > 1 ? new Color(255, 80, 80) : new Color(220, 20, 20));
         g2.drawString(hearts.toString(), x, baselineY);
+    }
+
+    private void drawHammerStatus(Graphics2D g2, int x, int y, int width) {
+        String text = "F";
+
+        g2.drawImage(AssetManager.hammer, x, y, 30, 30, null);
+        g2.setFont(fontHudValue);
+        g2.setColor(Color.WHITE);
+        int textX = x + width - g2.getFontMetrics().stringWidth(text);
+        g2.drawString(text, textX, y + 27);
     }
 }

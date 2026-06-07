@@ -10,18 +10,23 @@ public class GameStateManager {
     private final GamePanel gp;
 
     private final MenuScreen      menuScreen;
+    private final WorldMapScreen  worldMapScreen;
     private final HowToPlayScreen howToPlayScreen;
+    private final StoryScreen     storyScreen;
     private final PauseScreen     pauseScreen;
     private final GameOverScreen  gameOverScreen;
     private final WinScreen       winScreen;
 
     // Debounce phím Pause để tránh toggle quá nhanh
     private boolean pauseKeyWasDown = false;
+    private boolean quitKeyWasDown = false;
 
     public GameStateManager(GamePanel gp) {
         this.gp              = gp;
         this.menuScreen      = new MenuScreen(this);
+        this.worldMapScreen  = new WorldMapScreen(this);
         this.howToPlayScreen = new HowToPlayScreen(this);
+        this.storyScreen     = new StoryScreen(this);
         this.pauseScreen     = new PauseScreen(this);
         this.gameOverScreen  = new GameOverScreen(this);
         this.winScreen       = new WinScreen(this);
@@ -29,7 +34,11 @@ public class GameStateManager {
     }
 
     public void setState(GameState newState) {
+        if (this.currentState != newState) {
+            gp.clearInputKeys();
+        }
         this.currentState = newState;
+        gp.updateMusicForState(newState);
     }
 
     public GameState getState() {
@@ -62,6 +71,15 @@ public class GameStateManager {
             }
         }
 
+        boolean quitKeyDown = key.qPressed;
+        if (quitKeyDown && !quitKeyWasDown
+                && (currentState == GameState.PLAYING || currentState == GameState.PAUSED)) {
+            gp.quitToMenuFromPause();
+            quitKeyWasDown = quitKeyDown;
+            return;
+        }
+        quitKeyWasDown = quitKeyDown;
+
         // Toggle Pause (chỉ hoạt động khi PLAYING hoặc PAUSED)
         boolean pauseKeyDown = key.escPressed || key.pPressed;
         if (pauseKeyDown && !pauseKeyWasDown) {
@@ -76,7 +94,9 @@ public class GameStateManager {
         // Delegate update cho màn hình hiện tại
         switch (currentState) {
             case MENU        -> menuScreen.update(key);
+            case WORLD_MAP   -> worldMapScreen.update(key);
             case HOW_TO_PLAY -> howToPlayScreen.update(key);
+            case STORY       -> storyScreen.update(key);
             case PAUSED      -> pauseScreen.update(key);
             case GAME_OVER   -> gameOverScreen.update(key);
             case WIN         -> winScreen.update(key);
@@ -91,7 +111,9 @@ public class GameStateManager {
     public void draw(Graphics2D g2) {
         switch (currentState) {
             case MENU        -> menuScreen.draw(g2);
+            case WORLD_MAP   -> worldMapScreen.draw(g2);
             case HOW_TO_PLAY -> howToPlayScreen.draw(g2);
+            case STORY       -> storyScreen.draw(g2);
             case PAUSED      -> pauseScreen.draw(g2);
             case GAME_OVER   -> gameOverScreen.draw(g2);
             case WIN         -> winScreen.draw(g2);

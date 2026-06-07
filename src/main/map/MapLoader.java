@@ -1,5 +1,7 @@
 package main.map;
 
+import java.awt.AlphaComposite;
+import java.awt.Composite;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
@@ -8,6 +10,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import main.core.GamePanel;
@@ -16,12 +19,22 @@ import main.util.AssetManager;
 public class MapLoader {
 
     public static final int DIRT = 0;
+    public static final int PLASTIC = 1;
     public static final int WALL = 2;
     public static final int BUSH = 3;
     public static final int SPAWN = 5;
+    public static final int LOCK = 6;
+    public static final int PHAT_0 = 40;
+    public static final int PHAT_1 = 41;
+    public static final int PHAT_2 = 42;
+    public static final int PHAT_3 = 43;
+    private static final int BREAKING_PLASTIC = -1;
+    private static final int PLASTIC_BREAK_FRAMES = 18;
+    private static final int PLASTIC_BREAK_PIECES = 4;
 
     private final GamePanel gp;
     private int[][] backgroundData;
+    private final List<PlasticBreakAnimation> plasticBreakAnimations = new ArrayList<>();
 
     public MapLoader(GamePanel gp) {
         this(gp, "/maps/map01_background.csv");
@@ -53,12 +66,42 @@ public class MapLoader {
         }
     }
 
+    public boolean clearPlasticClusterAt(int row, int col) {
+        if (getTileAt(row, col) != PLASTIC) {
+            return false;
+        }
+
+        startPlasticBreakCluster(row, col);
+        return true;
+    }
+
+    private void startPlasticBreakCluster(int row, int col) {
+        if (getTileAt(row, col) != PLASTIC) {
+            return;
+        }
+
+        backgroundData[row][col] = BREAKING_PLASTIC;
+        plasticBreakAnimations.add(new PlasticBreakAnimation(row, col));
+        startPlasticBreakCluster(row - 1, col);
+        startPlasticBreakCluster(row + 1, col);
+        startPlasticBreakCluster(row, col - 1);
+        startPlasticBreakCluster(row, col + 1);
+    }
+
     public int[][] copyBackgroundData() {
         return copyMap(backgroundData);
     }
 
     public void restoreBackgroundData(int[][] data) {
         backgroundData = copyMap(data);
+        plasticBreakAnimations.clear();
+        for (int row = 0; row < backgroundData.length; row++) {
+            for (int col = 0; col < backgroundData[row].length; col++) {
+                if (backgroundData[row][col] == BREAKING_PLASTIC) {
+                    backgroundData[row][col] = DIRT;
+                }
+            }
+        }
     }
 
     private static int[][] copyMap(int[][] source) {
@@ -70,7 +113,15 @@ public class MapLoader {
     }
 
     public boolean isWall(int row, int col) {
-        return getTileAt(row, col) == WALL;
+        int tile = getTileAt(row, col);
+        return tile == WALL
+                || tile == PLASTIC
+                || tile == BREAKING_PLASTIC
+                || tile == LOCK
+                || tile == PHAT_0
+                || tile == PHAT_1
+                || tile == PHAT_2
+                || tile == PHAT_3;
     }
 
     public boolean isGround(int row, int col) {
@@ -154,19 +205,90 @@ public class MapLoader {
                 }
             }
         }
+        drawPlasticBreakAnimations(g2);
+    }
+
+    private void drawPlasticBreakAnimations(Graphics2D g2) {
+        Iterator<PlasticBreakAnimation> iterator = plasticBreakAnimations.iterator();
+        while (iterator.hasNext()) {
+            PlasticBreakAnimation animation = iterator.next();
+            animation.frame++;
+            if (animation.frame > PLASTIC_BREAK_FRAMES) {
+                backgroundData[animation.row][animation.col] = DIRT;
+                iterator.remove();
+                continue;
+            }
+            drawPlasticBreakAnimation(g2, animation);
+        }
+    }
+
+    private void drawPlasticBreakAnimation(Graphics2D g2, PlasticBreakAnimation animation) {
+        int tileX = animation.col * gp.tileSize;
+        int tileY = animation.row * gp.tileSize;
+        int pieceSize = gp.tileSize / 2;
+        int sourcePieceWidth = AssetManager.plastic.getWidth() / 2;
+        int sourcePieceHeight = AssetManager.plastic.getHeight() / 2;
+        float alpha = 1f - animation.frame / (float) PLASTIC_BREAK_FRAMES;
+
+        Composite oldComposite = g2.getComposite();
+        g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0f, alpha)));
+        for (int i = 0; i < PLASTIC_BREAK_PIECES; i++) {
+            int sourceX = (i % 2) * pieceSize;
+            int sourceY = (i / 2) * pieceSize;
+            int imageSourceX = (i % 2) * sourcePieceWidth;
+            int imageSourceY = (i / 2) * sourcePieceHeight;
+            int offsetX = ((i % 2 == 0) ? -1 : 1) * animation.frame;
+            int offsetY = ((i / 2 == 0) ? -1 : 1) * animation.frame;
+            g2.drawImage(AssetManager.plastic,
+                    tileX + sourceX + offsetX,
+                    tileY + sourceY + offsetY,
+                    tileX + sourceX + offsetX + pieceSize,
+                    tileY + sourceY + offsetY + pieceSize,
+                    imageSourceX,
+                    imageSourceY,
+                    imageSourceX + sourcePieceWidth,
+                    imageSourceY + sourcePieceHeight,
+                    null);
+        }
+        g2.setComposite(oldComposite);
     }
 
     private BufferedImage getTileImage(int tileType) {
         switch (tileType) {
             case WALL:
                 return AssetManager.wall;
+            case PLASTIC:
+                return AssetManager.plastic;
+            case BREAKING_PLASTIC:
+                return AssetManager.dirt;
             case BUSH:
                 return AssetManager.bush;
             case SPAWN:
                 return AssetManager.spawn;
+            case LOCK:
+                return AssetManager.tileLock;
+            case PHAT_0:
+                return AssetManager.phat0;
+            case PHAT_1:
+                return AssetManager.phat1;
+            case PHAT_2:
+                return AssetManager.phat2;
+            case PHAT_3:
+                return AssetManager.phat3;
             case DIRT:
             default:
                 return AssetManager.dirt;
+        }
+    }
+
+    private static final class PlasticBreakAnimation {
+        private final int row;
+        private final int col;
+        private int frame;
+
+        private PlasticBreakAnimation(int row, int col) {
+            this.row = row;
+            this.col = col;
         }
     }
 }

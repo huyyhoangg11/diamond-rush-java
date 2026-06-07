@@ -25,11 +25,15 @@ public class PauseScreen implements Screen {
         if (anyKey && !keyWasDown) {
             if (key.upPressed) {
                 selectedOption = (selectedOption - 1 + options.length) % options.length;
+                gsm.getGamePanel().playSfx(SoundManager.SFX_MENU_MOVE);
             } else if (key.downPressed) {
                 selectedOption = (selectedOption + 1) % options.length;
+                gsm.getGamePanel().playSfx(SoundManager.SFX_MENU_MOVE);
             } else if (key.rPressed) {
+                gsm.getGamePanel().playSfx(SoundManager.SFX_MENU_SELECT);
                 gsm.getGamePanel().resetToCheckpoint();
             } else if (key.enterPressed) {
+                gsm.getGamePanel().playSfx(SoundManager.SFX_MENU_SELECT);
                 handleSelection();
             }
         }

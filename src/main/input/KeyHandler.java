@@ -9,7 +9,9 @@ public class KeyHandler implements KeyListener {
     public boolean enterPressed;
     public boolean escPressed;
     public boolean pPressed;
+    public boolean qPressed;
     public boolean rPressed;
+    public boolean fPressed;
 
     @Override
     public void keyTyped(KeyEvent e) {}
@@ -25,7 +27,9 @@ public class KeyHandler implements KeyListener {
             case KeyEvent.VK_ENTER                -> enterPressed = true;
             case KeyEvent.VK_ESCAPE               -> escPressed   = true;
             case KeyEvent.VK_P                    -> pPressed     = true;
+            case KeyEvent.VK_Q                    -> qPressed     = true;
             case KeyEvent.VK_R                    -> rPressed     = true;
+            case KeyEvent.VK_F                    -> fPressed     = true;
         }
     }
 
@@ -40,7 +44,9 @@ public class KeyHandler implements KeyListener {
             case KeyEvent.VK_ENTER                -> enterPressed = false;
             case KeyEvent.VK_ESCAPE               -> escPressed   = false;
             case KeyEvent.VK_P                    -> pPressed     = false;
+            case KeyEvent.VK_Q                    -> qPressed     = false;
             case KeyEvent.VK_R                    -> rPressed     = false;
+            case KeyEvent.VK_F                    -> fPressed     = false;
         }
     }
 
@@ -55,6 +61,8 @@ public class KeyHandler implements KeyListener {
         enterPressed = false;
         escPressed = false;
         pPressed = false;
+        qPressed = false;
         rPressed = false;
+        fPressed = false;
     }
 }
