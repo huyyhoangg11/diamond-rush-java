@@ -12,6 +12,7 @@ import main.input.KeyHandler;
 import main.map.MapLoader;
 import main.object.Diamond;
 import main.object.Door;
+import main.object.FinalDiamondPre;
 import main.object.GameObject;
 import main.object.Hammer;
 import main.object.Key;
@@ -26,7 +27,6 @@ public class Player extends Entity {
     private static final int HAMMER_FRAME_INTERVAL = 5;
     private static final int SPAWN_FRAME_INTERVAL = 9;
     private static final int DIE_FRAME_INTERVAL = 16;
-    private static final int DIE_ZOOM_SCALE = 3;
 
     GamePanel gp;
     KeyHandler keyH;
@@ -42,6 +42,7 @@ public class Player extends Entity {
     private boolean spawning;
     private boolean dying;
     private boolean gameOverAfterDeath;
+    private boolean waitingForDeathZoom;
     private boolean hammerKeyWasDown;
     private final List<HammerAnimation> hammerAnimations = new ArrayList<>();
     private final int startRow;
@@ -106,7 +107,7 @@ public class Player extends Entity {
         updateHammerAnimations();
         updateSpawnAnimation();
         updateDieAnimation();
-        if (spawning || dying) {
+        if (spawning || dying || waitingForDeathZoom) {
             return;
         }
 
@@ -159,6 +160,12 @@ public class Player extends Entity {
             }
             pushedRock = true;
         } else if (object instanceof Door) {
+            gp.levelComplete = true;
+            enteredDoor = true;
+        } else if (object instanceof FinalDiamondPre) {
+            object.setActive(false);
+            score++;
+            gp.playSfx(SoundManager.SFX_EAT_DIAMOND);
             gp.levelComplete = true;
             enteredDoor = true;
         } else if (object instanceof Diamond) {
@@ -221,7 +228,12 @@ public class Player extends Entity {
             enemy.crushByRock();
         }
 
+        if (gp.hitBossWithRockAt(newRow, newCol, rock)) {
+            return true;
+        }
+
         rock.setGridPosition(gp, newRow, newCol);
+        gp.trackBossRockMove(rock, newRow, newCol);
         gp.mapLoader.clearBushAt(newRow, newCol);
         return true;
     }
@@ -242,6 +254,11 @@ public class Player extends Entity {
     }
 
     private void useHammerAt(int targetRow, int targetCol) {
+        if (gp.hitBossWithHammerAt(targetRow, targetCol)) {
+            startHammerAnimation(targetRow, targetCol);
+            return;
+        }
+
         Enemy enemy = gp.getEnemyAt(targetRow, targetCol);
         if (enemy != null) {
             startHammerAnimation(targetRow, targetCol);
@@ -293,6 +310,9 @@ public class Player extends Entity {
         if (dying || spawning) {
             return;
         }
+        if (waitingForDeathZoom) {
+            return;
+        }
         if (invincibleFrames > 0) {
             return;
         }
@@ -300,9 +320,9 @@ public class Player extends Entity {
         lives--;
         if (lives <= 0) {
             gameOverAfterDeath = true;
+            waitingForDeathZoom = true;
             gp.stopBgm();
-            gp.playSfx(SoundManager.SFX_DIE);
-            startDieAnimation();
+            gp.startFinalDeathZoom();
             return;
         }
 
@@ -315,6 +335,7 @@ public class Player extends Entity {
         spawnFrame = 0;
         spawnTimer = 0;
         dying = false;
+        waitingForDeathZoom = false;
         gameOverAfterDeath = false;
         dieFrame = 0;
         dieTimer = 0;
@@ -346,6 +367,14 @@ public class Player extends Entity {
     }
 
     private void updateDieAnimation() {
+        if (waitingForDeathZoom) {
+            if (gp.advanceFinalDeathZoom()) {
+                waitingForDeathZoom = false;
+                gp.playSfx(SoundManager.SFX_DIE);
+                startDieAnimation();
+            }
+            return;
+        }
         if (!dying) {
             return;
         }
@@ -368,12 +397,20 @@ public class Player extends Entity {
         }
     }
 
+    public boolean isDeathSequenceActive() {
+        return waitingForDeathZoom || dying;
+    }
+
     public void draw(Graphics2D g2) {
         if (invincibleFrames > 0 && (invincibleFrames / 6) % 2 == 0) {
             return;
         }
+        if (waitingForDeathZoom) {
+            drawCharacter(g2);
+            return;
+        }
         if (dying) {
-            drawZoomedDeath(g2);
+            drawDeathAnimation(g2);
             return;
         }
         if (spawning) {
@@ -447,13 +484,9 @@ public class Player extends Entity {
         g2.drawImage(image, drawX, drawY, drawWidth, drawHeight, null);
     }
 
-    private void drawZoomedDeath(Graphics2D g2) {
+    private void drawDeathAnimation(Graphics2D g2) {
         BufferedImage image = AssetManager.playerDieFrames[dieFrame];
-        int zoomedTile = gp.tileSize * DIE_ZOOM_SCALE;
-        int drawX = x + gp.tileSize / 2 - zoomedTile / 2;
-        int drawHeight = Math.max(1, image.getHeight() * zoomedTile / image.getWidth());
-        int drawY = y + gp.tileSize - drawHeight;
-        g2.drawImage(image, drawX, drawY, zoomedTile, drawHeight, null);
+        drawBottomAnchored(g2, image, x, y);
     }
 
     private static final class HammerAnimation {

@@ -24,10 +24,6 @@ public class MapLoader {
     public static final int BUSH = 3;
     public static final int SPAWN = 5;
     public static final int LOCK = 6;
-    public static final int PHAT_0 = 40;
-    public static final int PHAT_1 = 41;
-    public static final int PHAT_2 = 42;
-    public static final int PHAT_3 = 43;
     private static final int BREAKING_PLASTIC = -1;
     private static final int PLASTIC_BREAK_FRAMES = 18;
     private static final int PLASTIC_BREAK_PIECES = 4;
@@ -117,11 +113,7 @@ public class MapLoader {
         return tile == WALL
                 || tile == PLASTIC
                 || tile == BREAKING_PLASTIC
-                || tile == LOCK
-                || tile == PHAT_0
-                || tile == PHAT_1
-                || tile == PHAT_2
-                || tile == PHAT_3;
+                || tile == LOCK;
     }
 
     public boolean isGround(int row, int col) {
@@ -267,14 +259,6 @@ public class MapLoader {
                 return AssetManager.spawn;
             case LOCK:
                 return AssetManager.tileLock;
-            case PHAT_0:
-                return AssetManager.phat0;
-            case PHAT_1:
-                return AssetManager.phat1;
-            case PHAT_2:
-                return AssetManager.phat2;
-            case PHAT_3:
-                return AssetManager.phat3;
             case DIRT:
             default:
                 return AssetManager.dirt;

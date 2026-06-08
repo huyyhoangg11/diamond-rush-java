@@ -1,48 +1,54 @@
 package main.ui;
 
 import main.input.KeyHandler;
-import java.awt.*;
+import main.util.AssetManager;
+
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.GradientPaint;
+import java.awt.Graphics2D;
 
 public class WinScreen implements Screen {
 
-    private final GameStateManager gsm;
-    private boolean keyWasDown = false;
-    private int     fadeAlpha  = 0;
+    private static final int SPARK_COUNT = 28;
 
-    // Hiệu ứng hạt kim cương rơi
-    private static final int SPARK_COUNT = 22;
+    private final GameStateManager gsm;
     private final int[] sx = new int[SPARK_COUNT];
     private final int[] sy = new int[SPARK_COUNT];
-    private final int[] sp = new int[SPARK_COUNT]; // tốc độ rơi
+    private final int[] sp = new int[SPARK_COUNT];
+    private boolean keyWasDown;
+    private int fadeAlpha;
 
     public WinScreen(GameStateManager gsm) {
         this.gsm = gsm;
         for (int i = 0; i < SPARK_COUNT; i++) {
-            sx[i] = (int)(Math.random() * 960);
-            sy[i] = (int)(Math.random() * 960);
-            sp[i] = 1 + (int)(Math.random() * 3);
+            sx[i] = (int) (Math.random() * 1200);
+            sy[i] = (int) (Math.random() * 960);
+            sp[i] = 1 + (int) (Math.random() * 3);
         }
     }
 
     @Override
     public void update(KeyHandler key) {
-        if (fadeAlpha < 255) fadeAlpha = Math.min(fadeAlpha + 3, 255);
+        if (fadeAlpha < 255) {
+            fadeAlpha = Math.min(fadeAlpha + 4, 255);
+        }
 
-        // Cập nhật hạt rơi
         int h = gsm.getGamePanel().getHeight();
         int w = gsm.getGamePanel().getWidth();
         for (int i = 0; i < SPARK_COUNT; i++) {
             sy[i] += sp[i];
-            if (sy[i] > h) {
-                sy[i] = 0;
-                sx[i] = (int)(Math.random() * w);
+            if (sy[i] > h + 20) {
+                sy[i] = -20;
+                sx[i] = (int) (Math.random() * w);
             }
         }
 
         boolean keyDown = key.enterPressed;
         if (keyDown && !keyWasDown && fadeAlpha > 150) {
             fadeAlpha = 0;
-            gsm.setState(GameState.MENU);
+            gsm.setState(GameState.WORLD_MAP);
         }
         keyWasDown = keyDown;
     }
@@ -52,50 +58,91 @@ public class WinScreen implements Screen {
         int w = gsm.getGamePanel().getWidth();
         int h = gsm.getGamePanel().getHeight();
         int a = fadeAlpha;
+        boolean finalLevel = gsm.getGamePanel().isFinalLevel();
 
-        // Nền gradient xanh lá fade-in
-        GradientPaint bg = new GradientPaint(0, 0, new Color(0, 18, 5, a),
-                                              0, h, new Color(0, 45, 18, a));
-        g2.setPaint(bg);
+        drawBackground(g2, w, h, a);
+        if (a < 45) {
+            return;
+        }
+
+        drawSparks(g2, a);
+        drawPanel(g2, w, h, a, finalLevel);
+    }
+
+    private void drawBackground(Graphics2D g2, int w, int h, int a) {
+        g2.drawImage(AssetManager.uiMenu0, 0, 0, w, h, null);
+        g2.drawImage(AssetManager.uiMenu1, 0, 0, w, h, null);
+        g2.setColor(new Color(255, 236, 160, Math.min(95, a / 2)));
         g2.fillRect(0, 0, w, h);
+    }
 
-        if (a < 60) return;
-
-        // Hạt kim cương rơi
+    private void drawSparks(Graphics2D g2, int a) {
         g2.setFont(new Font("Dialog", Font.BOLD, 20));
-        g2.setColor(new Color(90, 210, 255, Math.min(a, 160)));
+        g2.setColor(new Color(105, 235, 255, Math.min(a, 170)));
         for (int i = 0; i < SPARK_COUNT; i++) {
             g2.drawString("◆", sx[i], sy[i]);
         }
+    }
 
-        // "CHIẾN THẮNG!" — shadow + chữ chính
-        g2.setFont(new Font("Arial Black", Font.BOLD, 62));
-        String title = "YOU WIN!";
-        int tx = getCenterX(g2, title, w);
-        g2.setColor(new Color(0, 70, 0, a));
-        g2.drawString(title, tx + 4, h / 3 + 4);
-        g2.setColor(new Color(70, 245, 100, a));
-        g2.drawString(title, tx, h / 3);
+    private void drawPanel(Graphics2D g2, int w, int h, int a, boolean finalLevel) {
+        int panelW = 680;
+        int panelH = finalLevel ? 390 : 340;
+        int x = (w - panelW) / 2;
+        int y = (h - panelH) / 2 + 18;
 
-        // Kim cương trang trí
-        g2.setFont(new Font("Dialog", Font.BOLD, 52));
-        g2.setColor(new Color(90, 210, 255, a));
-        String gems = "◆  ◆  ◆";
-        g2.drawString(gems, getCenterX(g2, gems, w), h / 2 - 5);
+        g2.setColor(new Color(28, 16, 7, Math.min(a, 210)));
+        g2.fillRoundRect(x + 8, y + 10, panelW, panelH, 28, 28);
+        GradientPaint paint = new GradientPaint(x, y,
+                new Color(103, 66, 28, Math.min(a, 238)),
+                x, y + panelH,
+                new Color(38, 23, 11, Math.min(a, 238)));
+        g2.setPaint(paint);
+        g2.fillRoundRect(x, y, panelW, panelH, 28, 28);
+        g2.setStroke(new BasicStroke(3f));
+        g2.setColor(new Color(255, 214, 102, a));
+        g2.drawRoundRect(x, y, panelW, panelH, 28, 28);
+        g2.setColor(new Color(255, 248, 210, Math.min(a, 120)));
+        g2.drawRoundRect(x + 10, y + 10, panelW - 20, panelH - 20, 22, 22);
 
-        // Thống kê
-        g2.setFont(new Font("Arial", Font.BOLD, 23));
-        g2.setColor(new Color(255, 255, 210, a));
-        int col = gsm.getGamePanel().player.score;
-        String stat  = "Collected " + col + " diamonds!";
-        g2.drawString(stat, getCenterX(g2, stat, w), h / 2 + 62);
+        String title = finalLevel ? "ESCAPED!" : "LEVEL CLEAR";
+        g2.setFont(new Font("Georgia", Font.BOLD, finalLevel ? 58 : 54));
+        drawOutlined(g2, title, getCenterX(g2, title, w), y + 86,
+                new Color(255, 232, 120, a), new Color(58, 30, 8, a));
+
+        g2.drawImage(finalLevel ? AssetManager.diamondPre : AssetManager.uiDiamond,
+                x + panelW / 2 - 42, y + 112, 84, 84, null);
+
+        g2.setFont(new Font("Georgia", Font.BOLD, 25));
+        if (finalLevel) {
+            String success = "Thoát khỏi hầm mỏ thành công";
+            drawOutlined(g2, success, getCenterX(g2, success, w), y + 230,
+                    new Color(255, 248, 220, a), new Color(55, 31, 10, a));
+            String total = "Tổng kim cương thu được: " + gsm.getGamePanel().getJourneyDiamondCount();
+            drawOutlined(g2, total, getCenterX(g2, total, w), y + 272,
+                    new Color(110, 235, 255, a), new Color(20, 36, 46, a));
+        } else {
+            String stat = "Diamonds collected: " + gsm.getGamePanel().player.score;
+            drawOutlined(g2, stat, getCenterX(g2, stat, w), y + 232,
+                    new Color(255, 248, 220, a), new Color(55, 31, 10, a));
+        }
 
         if (a > 150) {
-            g2.setFont(new Font("Arial", Font.PLAIN, 19));
-            g2.setColor(new Color(160, 245, 180, a));
-            String hint  = "Press Enter to return to Menu";
-            g2.drawString(hint, getCenterX(g2, hint, w), h * 2 / 3 + 30);
+            g2.setFont(new Font("Georgia", Font.BOLD, 19));
+            String hint = "Press Enter to return to World Map";
+            drawOutlined(g2, hint, getCenterX(g2, hint, w), y + panelH - 42,
+                    new Color(255, 220, 130, a), new Color(48, 25, 8, a));
         }
+    }
+
+    private void drawOutlined(Graphics2D g2, String text, int x, int y, Color fill, Color outline) {
+        g2.setColor(outline);
+        g2.drawString(text, x - 2, y);
+        g2.drawString(text, x + 2, y);
+        g2.drawString(text, x, y - 2);
+        g2.drawString(text, x, y + 2);
+        g2.drawString(text, x + 3, y + 3);
+        g2.setColor(fill);
+        g2.drawString(text, x, y);
     }
 
     private int getCenterX(Graphics2D g2, String text, int w) {

@@ -48,19 +48,30 @@ public class UI {
     // =========================================================
 
     private void drawHUD(Graphics2D g2) {
-        int panelW = 178;
-        int panelH = gp.hasHammer() ? 132 : 92;
-        int x = gp.getWidth() - panelW - 16;
-        int y = gp.getHeight() - panelH - 16;
+        int x = 18;
+        int y = 16;
+        int panelW = gp.hasHammer() ? 430 : 370;
+        int panelH = 74;
 
-        g2.setColor(new Color(0, 0, 0, 175));
-        g2.fillRoundRect(x, y, panelW, panelH, 14, 14);
+        g2.setColor(new Color(30, 18, 8, 205));
+        g2.fillRoundRect(x + 4, y + 5, panelW, panelH, 20, 20);
+        GradientPaint panelPaint = new GradientPaint(x, y,
+                new Color(102, 65, 26, 230),
+                x, y + panelH,
+                new Color(34, 21, 10, 230));
+        g2.setPaint(panelPaint);
+        g2.fillRoundRect(x, y, panelW, panelH, 20, 20);
+        g2.setStroke(new BasicStroke(2.5f));
+        g2.setColor(new Color(255, 214, 102, 235));
+        g2.drawRoundRect(x, y, panelW, panelH, 20, 20);
+        g2.setColor(new Color(255, 244, 186, 80));
+        g2.drawLine(x + 18, y + 8, x + panelW - 18, y + 8);
 
-        g2.drawImage(AssetManager.uiPlayer, x + 14, y + 13, 34, 34, null);
-        drawLives(g2, x + 58, y + 39);
-        drawDiamondCounter(g2, x + 15, y + 52, panelW - 30);
+        drawLevelBadge(g2, x + 18, y + 16);
+        drawDiamondCounter(g2, x + 146, y + 20, 96);
+        drawLives(g2, x + 262, y + 45);
         if (gp.hasHammer()) {
-            drawHammerStatus(g2, x + 15, y + 92, panelW - 30);
+            drawHammerStatus(g2, x + 356, y + 20);
         }
     }
 
@@ -68,11 +79,9 @@ public class UI {
         int collected = gp.player.score;
         String text = "x " + collected;
 
-        g2.drawImage(AssetManager.uiDiamond, x, y + 4, 30, 30, null);
+        g2.drawImage(AssetManager.uiDiamond, x, y + 3, 32, 32, null);
         g2.setFont(fontHudValue);
-        g2.setColor(Color.WHITE);
-        int textX = x + width - g2.getFontMetrics().stringWidth(text);
-        g2.drawString(text, textX, y + 30);
+        drawTextShadow(g2, text, x + 40, y + 30, new Color(245, 250, 255));
     }
 
     private void drawLives(Graphics2D g2, int x, int baselineY) {
@@ -83,17 +92,27 @@ public class UI {
         for (int i = 0; i < 3; i++) {
             hearts.append(i < lives ? "♥" : "♡");
         }
-        g2.setColor(lives > 1 ? new Color(255, 80, 80) : new Color(220, 20, 20));
-        g2.drawString(hearts.toString(), x, baselineY);
+        drawTextShadow(g2, hearts.toString(), x, baselineY,
+                lives > 1 ? new Color(255, 90, 85) : new Color(235, 35, 35));
     }
 
-    private void drawHammerStatus(Graphics2D g2, int x, int y, int width) {
-        String text = "F";
-
-        g2.drawImage(AssetManager.hammer, x, y, 30, 30, null);
+    private void drawHammerStatus(Graphics2D g2, int x, int y) {
+        g2.drawImage(AssetManager.hammer, x, y + 1, 32, 32, null);
         g2.setFont(fontHudValue);
-        g2.setColor(Color.WHITE);
-        int textX = x + width - g2.getFontMetrics().stringWidth(text);
-        g2.drawString(text, textX, y + 27);
+        drawTextShadow(g2, "F", x + 40, y + 30, new Color(255, 230, 120));
+    }
+
+    private void drawLevelBadge(Graphics2D g2, int x, int y) {
+        String level = gp.getLevelName(gp.getCurrentLevelIndex()).toUpperCase();
+        g2.drawImage(AssetManager.uiPlayer, x, y, 34, 34, null);
+        g2.setFont(new Font("Georgia", Font.BOLD, 20));
+        drawTextShadow(g2, level, x + 44, y + 27, new Color(255, 235, 170));
+    }
+
+    private void drawTextShadow(Graphics2D g2, String text, int x, int y, Color fill) {
+        g2.setColor(new Color(35, 16, 3, 210));
+        g2.drawString(text, x + 2, y + 2);
+        g2.setColor(fill);
+        g2.drawString(text, x, y);
     }
 }

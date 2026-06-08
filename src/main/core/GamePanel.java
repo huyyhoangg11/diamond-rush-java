@@ -8,14 +8,17 @@ import main.map.MapLoader;
 import main.object.Diamond;
 import main.object.DiamondPre;
 import main.object.Door;
+import main.object.FinalDiamondPre;
 import main.object.GameObject;
 import main.object.Hammer;
 import main.object.Key;
 import main.object.Knob;
 import main.object.LockBolt;
+import main.object.PhatTile;
 import main.object.Rock;
 import main.object.SpecialLock;
 import main.object.Statue;
+import main.object.WallSnake;
 import main.ui.GameState;
 import main.ui.GameStateManager;
 import main.ui.SoundManager;
@@ -28,6 +31,7 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
+import java.awt.geom.AffineTransform;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -55,10 +59,19 @@ public class GamePanel extends JPanel {
     private static final int OBJ_KNOB = 10;
     private static final int OBJ_SPECIAL_LOCK = 11;
     private static final int OBJ_KEY = 12;
+    private static final int OBJ_FINAL_DIAMOND_PRE = 13;
     private static final int OBJ_DIAMOND_PRE = 14;
+    private static final int OBJ_PHAT_0 = 40;
+    private static final int OBJ_PHAT_1 = 41;
+    private static final int OBJ_PHAT_2 = 42;
+    private static final int OBJ_PHAT_3 = 43;
+    private static final int OBJ_SNAKE_BOSS_SPAWN = 45;
+    private static final int OBJ_WALL_SNAKE = 50;
     private static final int MAX_AUTO_LEVELS = 20;
     private static final int ROCK_PRESSURE_DAMAGE_FRAMES = 60;
     private static final int ROCK_MOVE_INTERVAL_FRAMES = 10;
+    private static final int FINAL_DEATH_ZOOM_FRAMES = 48;
+    private static final double FINAL_DEATH_ZOOM_SCALE = 2.55;
     private static final Path SAVE_PATH = Path.of(System.getProperty("user.home"), ".diamondrush_save.properties");
 
     public final int tileSize = GameConfig.TILE_SIZE;
@@ -97,6 +110,9 @@ public class GamePanel extends JPanel {
     private int currentLevelIndex;
     private int snakeVariantOffset;
     private int snakeCountInLevel;
+    private boolean finalDeathZoomActive;
+    private int finalDeathZoomFrame;
+    private SnakeBossController snakeBossController;
 
     public int selectedLevelIndex;
 
@@ -151,6 +167,24 @@ public class GamePanel extends JPanel {
 
     public String getLevelName(int index) {
         return levels.get(index).name;
+    }
+
+    public int getCurrentLevelIndex() {
+        return currentLevelIndex;
+    }
+
+    public boolean isFinalLevel() {
+        return currentLevelIndex == levels.size() - 1;
+    }
+
+    public int getJourneyDiamondCount() {
+        int collected = player != null ? player.score : 0;
+        for (int i = 0; i < collectedDiamondKeysByLevel.size(); i++) {
+            if (i != currentLevelIndex) {
+                collected += collectedDiamondKeysByLevel.get(i).size();
+            }
+        }
+        return collected;
     }
 
     public boolean isLevelUnlocked(int index) {
@@ -307,6 +341,7 @@ public class GamePanel extends JPanel {
 
     public void resetToCheckpoint() {
         int currentLives = player != null ? player.lives : 3;
+        resetFinalDeathZoom();
         if (currentCheckpointSnapshot != null) {
             restoreSnapshot(currentCheckpointSnapshot, currentLives);
         } else {
@@ -318,6 +353,36 @@ public class GamePanel extends JPanel {
         keyH.clearActionKeys();
         keyH.clearMovementKeys();
         updateCamera();
+    }
+
+    public void startFinalDeathZoom() {
+        finalDeathZoomActive = true;
+        finalDeathZoomFrame = 0;
+    }
+
+    public boolean advanceFinalDeathZoom() {
+        if (!finalDeathZoomActive) {
+            return true;
+        }
+        if (finalDeathZoomFrame < FINAL_DEATH_ZOOM_FRAMES) {
+            finalDeathZoomFrame++;
+            return false;
+        }
+        return true;
+    }
+
+    private void resetFinalDeathZoom() {
+        finalDeathZoomActive = false;
+        finalDeathZoomFrame = 0;
+    }
+
+    private double getFinalDeathZoomScale() {
+        if (!finalDeathZoomActive) {
+            return 1.0;
+        }
+        double progress = Math.min(1.0, finalDeathZoomFrame / (double) FINAL_DEATH_ZOOM_FRAMES);
+        double eased = 1.0 - Math.pow(1.0 - progress, 3);
+        return 1.0 + (FINAL_DEATH_ZOOM_SCALE - 1.0) * eased;
     }
 
     private void loadLevel(int index) {
@@ -332,9 +397,11 @@ public class GamePanel extends JPanel {
         rockMoveCounter = 0;
         snakeVariantOffset = random.nextInt(2);
         snakeCountInLevel = 0;
+        resetFinalDeathZoom();
         objects.clear();
         enemies.clear();
         spawnPoints.clear();
+        snakeBossController = null;
         currentCheckpointSnapshot = null;
 
         mapLoader = new MapLoader(this, level.backgroundPath);
@@ -361,6 +428,7 @@ public class GamePanel extends JPanel {
 
     private void setupObjectsFromCsv(String objectPath) {
         int[][] objectData = MapLoader.loadCsvMap(objectPath);
+        List<Point> snakeBossSpawnMarkers = new ArrayList<>();
 
         for (int row = 0; row < objectData.length; row++) {
             for (int col = 0; col < objectData[row].length; col++) {
@@ -376,14 +444,24 @@ public class GamePanel extends JPanel {
                         objects.add(new DiamondPre(x, y));
                         totalDiamonds++;
                     }
+                    case OBJ_FINAL_DIAMOND_PRE -> {
+                        objects.add(new FinalDiamondPre(x, y));
+                        totalDiamonds++;
+                    }
                     case OBJ_DOOR -> objects.add(new Door(x, y));
-                    case OBJ_SNAKE -> enemies.add(new Enemy(this, x, y, row % 2 == 0, nextSnakeVariant()));
+                    case OBJ_SNAKE -> enemies.add(new Enemy(this, x, y, (row + col) % 2 == 0, nextSnakeVariant()));
                     case OBJ_HAMMER -> objects.add(new Hammer(x, y));
                     case OBJ_STATUE -> objects.add(new Statue(x, y));
                     case OBJ_LOCK_BOLT -> objects.add(new LockBolt(x, y));
                     case OBJ_KNOB -> objects.add(new Knob(x, y));
                     case OBJ_SPECIAL_LOCK -> objects.add(new SpecialLock(x, y));
                     case OBJ_KEY -> objects.add(new Key(x, y));
+                    case OBJ_PHAT_0 -> objects.add(new PhatTile(x, y, 0));
+                    case OBJ_PHAT_1 -> objects.add(new PhatTile(x, y, 1));
+                    case OBJ_PHAT_2 -> objects.add(new PhatTile(x, y, 2));
+                    case OBJ_PHAT_3 -> objects.add(new PhatTile(x, y, 3));
+                    case OBJ_SNAKE_BOSS_SPAWN -> snakeBossSpawnMarkers.add(new Point(col, row));
+                    case OBJ_WALL_SNAKE -> objects.add(new WallSnake(x, y));
                     case OBJ_PRIMARY_SPAWN -> {
                         addSpawnPoint(row, col);
                         spawnRow = row;
@@ -398,6 +476,10 @@ public class GamePanel extends JPanel {
                     }
                 }
             }
+        }
+
+        if (!snakeBossSpawnMarkers.isEmpty()) {
+            snakeBossController = new SnakeBossController(this, snakeBossSpawnMarkers);
         }
     }
 
@@ -519,7 +601,12 @@ public class GamePanel extends JPanel {
         }
 
         player.update();
+        if (player.isDeathSequenceActive()) {
+            updateCamera();
+            return;
+        }
         updateLocks();
+        updateSnakeBoss();
         updateStatues();
         checkFireContact();
         rememberCheckpointAtCurrentSpawn();
@@ -544,6 +631,16 @@ public class GamePanel extends JPanel {
         }
 
         updateCamera();
+    }
+
+    private void updateSnakeBoss() {
+        if (snakeBossController == null) {
+            return;
+        }
+        snakeBossController.update();
+        if (snakeBossController.isDangerAt(player.getRow(), player.getCol())) {
+            player.loseLife();
+        }
     }
 
     private void handleResetShortcut() {
@@ -636,6 +733,20 @@ public class GamePanel extends JPanel {
         return null;
     }
 
+    public boolean hitBossWithHammerAt(int row, int col) {
+        return snakeBossController != null && snakeBossController.hitWithHammer(row, col);
+    }
+
+    public boolean hitBossWithRockAt(int row, int col, GameObject rock) {
+        return snakeBossController != null && snakeBossController.hitWithRock(row, col, rock);
+    }
+
+    public void trackBossRockMove(GameObject rock, int row, int col) {
+        if (snakeBossController != null) {
+            snakeBossController.trackPushedRock(rock, row, col);
+        }
+    }
+
     private void updateFallingObjects() {
         rockMoveCounter++;
         if (rockMoveCounter < ROCK_MOVE_INTERVAL_FRAMES) {
@@ -694,6 +805,9 @@ public class GamePanel extends JPanel {
             if (object instanceof LockBolt lockBolt
                     && !(object instanceof SpecialLock)
                     && lockBolt.isActive()) {
+                if (snakeBossController != null && snakeBossController.controlsLock(lockBolt)) {
+                    continue;
+                }
                 Knob nearestKnob = findNearestKnob(lockBolt);
                 boolean shouldRetract = nearestKnob != null && isKnobPressed(nearestKnob);
                 lockBolt.update(shouldRetract);
@@ -744,6 +858,12 @@ public class GamePanel extends JPanel {
     }
 
     private void moveRockTo(GameObject rock, int row, int col) {
+        if (snakeBossController != null && snakeBossController.hitWithRock(row, col, rock)) {
+            return;
+        }
+        if (snakeBossController != null) {
+            snakeBossController.trackPushedRock(rock, row, col);
+        }
         Enemy enemy = getEnemyAt(row, col);
         if (enemy != null) {
             enemy.crushByRock();
@@ -907,6 +1027,9 @@ public class GamePanel extends JPanel {
         if (object instanceof Rock) {
             return "rock";
         }
+        if (object instanceof FinalDiamondPre) {
+            return "final_diamond_pre";
+        }
         if (object instanceof DiamondPre) {
             return "diamond_pre";
         }
@@ -933,6 +1056,12 @@ public class GamePanel extends JPanel {
         }
         if (object instanceof Statue) {
             return "statue";
+        }
+        if (object instanceof PhatTile phatTile) {
+            return "phat_" + phatTile.getVariant();
+        }
+        if (object instanceof WallSnake) {
+            return "wall_snake";
         }
         throw new IllegalArgumentException("Unknown object type: " + object.getClass().getName());
     }
@@ -967,6 +1096,10 @@ public class GamePanel extends JPanel {
             enemies.add(enemy);
         }
 
+        if (snakeBossController != null) {
+            snakeBossController.resetAfterRestore();
+        }
+
         player.restoreState(snapshot.playerRow, snapshot.playerCol, snapshot.playerScore, playerLives);
         totalDiamonds = snapshot.totalDiamonds;
         gameOver = false;
@@ -981,6 +1114,7 @@ public class GamePanel extends JPanel {
         int y = objectSnapshot.row * tileSize;
         return switch (objectSnapshot.type) {
             case "rock" -> new Rock(x, y);
+            case "final_diamond_pre" -> new FinalDiamondPre(x, y);
             case "diamond" -> new Diamond(x, y);
             case "diamond_pre" -> new DiamondPre(x, y);
             case "door" -> new Door(x, y);
@@ -1002,6 +1136,11 @@ public class GamePanel extends JPanel {
                 statue.restoreState(objectSnapshot.state1, objectSnapshot.state2);
                 yield statue;
             }
+            case "phat_0" -> new PhatTile(x, y, 0);
+            case "phat_1" -> new PhatTile(x, y, 1);
+            case "phat_2" -> new PhatTile(x, y, 2);
+            case "phat_3" -> new PhatTile(x, y, 3);
+            case "wall_snake" -> new WallSnake(x, y);
             default -> null;
         };
     }
@@ -1028,7 +1167,8 @@ public class GamePanel extends JPanel {
         GameState state = gsm.getState();
         if (state == GameState.PLAYING || state == GameState.PAUSED) {
             updateCamera();
-            g2.translate(-cameraX, -cameraY);
+            AffineTransform gameplayTransform = g2.getTransform();
+            applyGameplayTransform(g2);
 
             mapLoader.draw(g2);
             drawSpawnMarkers(g2);
@@ -1040,7 +1180,20 @@ public class GamePanel extends JPanel {
             }
 
             for (GameObject object : objects) {
-                if (object != null && !(object instanceof Knob) && object.isActive()) {
+                if (object != null
+                        && !(object instanceof Knob)
+                        && !(object instanceof WallSnake)
+                        && object.isActive()) {
+                    object.draw(g2, this);
+                }
+            }
+
+            if (snakeBossController != null) {
+                snakeBossController.draw(g2);
+            }
+
+            for (GameObject object : objects) {
+                if (object instanceof WallSnake && object.isActive()) {
                     object.draw(g2, this);
                 }
             }
@@ -1050,11 +1203,26 @@ public class GamePanel extends JPanel {
             }
 
             player.draw(g2);
-            g2.translate(cameraX, cameraY);
+            g2.setTransform(gameplayTransform);
         }
 
         ui.draw(g2);
+        if ((state == GameState.PLAYING || state == GameState.PAUSED) && snakeBossController != null) {
+            snakeBossController.drawHealthBar(g2);
+        }
         g2.dispose();
+    }
+
+    private void applyGameplayTransform(Graphics2D g2) {
+        double zoom = getFinalDeathZoomScale();
+        if (zoom > 1.001 && player != null) {
+            int focusScreenX = player.x + tileSize / 2 - cameraX;
+            int focusScreenY = player.y + tileSize / 2 - cameraY;
+            g2.translate(focusScreenX, focusScreenY);
+            g2.scale(zoom, zoom);
+            g2.translate(-focusScreenX, -focusScreenY);
+        }
+        g2.translate(-cameraX, -cameraY);
     }
 
     private void drawSpawnMarkers(Graphics2D g2) {
@@ -1064,6 +1232,558 @@ public class GamePanel extends JPanel {
             if (mapLoader.getTileAt(row, col) != MapLoader.SPAWN) {
                 g2.drawImage(AssetManager.spawn, col * tileSize, row * tileSize, tileSize, tileSize, null);
             }
+        }
+    }
+
+    private static final class SnakeBossController {
+        private static final int MAX_HEALTH = 10;
+        private static final int EMERGE_FRAMES = 36;
+        private static final int WAIT_HEAD_FRAMES = 60;
+        private static final int CHARGE_FRAMES = 18;
+        private static final int STUN_FIRE_FRAMES = 120;
+        private static final int RETREAT_FRAMES = 50;
+        private static final int SUBMERGE_FRAMES = 36;
+        private static final int HURT_FLASH_FRAMES = 30;
+        private static final int FIRE_RANGE = 3;
+
+        private final GamePanel gp;
+        private final List<Point> spawnPoints = new ArrayList<>();
+        private final List<Point> rockRespawnPoints = new ArrayList<>();
+        private final List<Point> pendingRockRespawns = new ArrayList<>();
+        private final List<GameObject> pendingRespawnRocks = new ArrayList<>();
+        private int fallbackLeftCol;
+        private int fallbackTopRow;
+        private List<LockBolt> controlledLocks = new ArrayList<>();
+        private BossPhase phase = BossPhase.IDLE;
+        private int health = MAX_HEALTH;
+        private int phaseTimer;
+        private int hurtFlashFrames;
+        private int headLeftCol;
+        private double headTopRow;
+        private boolean battleStarted;
+
+        private SnakeBossController(GamePanel gp, List<Point> spawnMarkers) {
+            this.gp = gp;
+            findSpawnPoints(spawnMarkers);
+            this.fallbackLeftCol = spawnPoints.get(0).x;
+            this.fallbackTopRow = spawnPoints.get(0).y;
+            this.headLeftCol = fallbackLeftCol;
+            this.headTopRow = fallbackTopRow;
+            findRockRespawnPoints();
+            rebindLocks();
+            setLocksOpenInstantly();
+        }
+
+        private void resetAfterRestore() {
+            phase = BossPhase.IDLE;
+            health = MAX_HEALTH;
+            phaseTimer = 0;
+            hurtFlashFrames = 0;
+            battleStarted = false;
+            headLeftCol = fallbackLeftCol;
+            headTopRow = fallbackTopRow;
+            pendingRockRespawns.clear();
+            pendingRespawnRocks.clear();
+            rebindLocks();
+            setLocksOpenInstantly();
+        }
+
+        private void update() {
+            if (phase == BossPhase.DEAD) {
+                updateLocks(true);
+                return;
+            }
+
+            if (!battleStarted && gp.player.getCol() > getFirstLockCol()) {
+                startBattle();
+            }
+
+            updateLocks(!battleStarted);
+            if (!battleStarted) {
+                return;
+            }
+
+            if (hurtFlashFrames > 0) {
+                hurtFlashFrames--;
+            }
+
+            phaseTimer++;
+            switch (phase) {
+                case EMERGE -> {
+                    double progress = Math.min(1.0, phaseTimer / (double) EMERGE_FRAMES);
+                    headTopRow = getHiddenHeadTopRow() + (getHoleHeadTopRow() - getHiddenHeadTopRow()) * progress;
+                    if (phaseTimer >= EMERGE_FRAMES) {
+                        startPhase(BossPhase.WAIT_HEAD);
+                    }
+                }
+                case WAIT_HEAD -> {
+                    if (phaseTimer >= WAIT_HEAD_FRAMES) {
+                        startPhase(BossPhase.CHARGE);
+                    }
+                }
+                case CHARGE -> {
+                    double progress = Math.min(1.0, phaseTimer / (double) CHARGE_FRAMES);
+                    headTopRow = getHoleHeadTopRow() + (getCrashTopRow() - getHoleHeadTopRow()) * progress;
+                    if (phaseTimer >= CHARGE_FRAMES) {
+                        respawnPendingRocks();
+                        startPhase(BossPhase.STUN_FIRE);
+                    }
+                }
+                case STUN_FIRE -> {
+                    if (phaseTimer >= STUN_FIRE_FRAMES) {
+                        startPhase(BossPhase.RETREAT);
+                    }
+                }
+                case RETREAT -> {
+                    double progress = Math.min(1.0, phaseTimer / (double) RETREAT_FRAMES);
+                    headTopRow = getCrashTopRow() + (getHoleHeadTopRow() - getCrashTopRow()) * progress;
+                    if (phaseTimer >= RETREAT_FRAMES) {
+                        startPhase(BossPhase.SUBMERGE);
+                    }
+                }
+                case SUBMERGE -> {
+                    double progress = Math.min(1.0, phaseTimer / (double) SUBMERGE_FRAMES);
+                    headTopRow = getHoleHeadTopRow() + (getHiddenHeadTopRow() - getHoleHeadTopRow()) * progress;
+                    if (phaseTimer >= SUBMERGE_FRAMES) {
+                        chooseNextSpawn();
+                        startPhase(BossPhase.EMERGE);
+                    }
+                }
+                default -> {
+                }
+            }
+        }
+
+        private void startBattle() {
+            battleStarted = true;
+            chooseNextSpawn();
+            startPhase(BossPhase.EMERGE);
+        }
+
+        private void startPhase(BossPhase nextPhase) {
+            phase = nextPhase;
+            phaseTimer = 0;
+            if (nextPhase == BossPhase.EMERGE) {
+                headTopRow = getHiddenHeadTopRow();
+            } else if (nextPhase == BossPhase.WAIT_HEAD) {
+                headTopRow = getHoleHeadTopRow();
+            } else if (nextPhase == BossPhase.CHARGE) {
+                headTopRow = getHoleHeadTopRow();
+            } else if (nextPhase == BossPhase.STUN_FIRE) {
+                headTopRow = getCrashTopRow();
+            } else if (nextPhase == BossPhase.SUBMERGE) {
+                headTopRow = getHoleHeadTopRow();
+            }
+        }
+
+        private void chooseNextSpawn() {
+            Point spawn = spawnPoints.isEmpty()
+                    ? new Point(fallbackLeftCol, fallbackTopRow)
+                    : spawnPoints.get(gp.random.nextInt(spawnPoints.size()));
+            headLeftCol = spawn.x;
+            headTopRow = spawn.y;
+        }
+
+        private void findSpawnPoints(List<Point> spawnMarkers) {
+            boolean[] used = new boolean[spawnMarkers.size()];
+            for (int i = 0; i < spawnMarkers.size(); i++) {
+                if (used[i]) {
+                    continue;
+                }
+                Point first = spawnMarkers.get(i);
+                Point second = null;
+                for (int j = i + 1; j < spawnMarkers.size(); j++) {
+                    Point candidate = spawnMarkers.get(j);
+                    if (!used[j] && candidate.x == first.x && Math.abs(candidate.y - first.y) == 1) {
+                        second = candidate;
+                        used[j] = true;
+                        break;
+                    }
+                }
+                used[i] = true;
+                int leftCol = first.x - 1;
+                int topRow = second == null ? first.y : Math.min(first.y, second.y);
+                spawnPoints.add(new Point(leftCol, topRow));
+            }
+            if (spawnPoints.isEmpty()) {
+                spawnPoints.add(new Point(1, 1));
+            }
+        }
+
+        private void findRockRespawnPoints() {
+            int minCol = spawnPoints.stream().mapToInt(point -> point.x).min().orElse(fallbackLeftCol) - 3;
+            int maxCol = spawnPoints.stream().mapToInt(point -> point.x).max().orElse(fallbackLeftCol) + 4;
+            int topRow = spawnPoints.stream().mapToInt(point -> point.y).min().orElse(fallbackTopRow);
+            for (GameObject object : gp.objects) {
+                if (object instanceof Rock && object.isActive()) {
+                    int row = object.getRow(gp);
+                    int col = object.getCol(gp);
+                    if (row <= topRow && col >= minCol && col <= maxCol) {
+                        rockRespawnPoints.add(new Point(col, row));
+                    }
+                }
+            }
+        }
+
+        private void rebindLocks() {
+            controlledLocks = new ArrayList<>();
+            for (GameObject object : gp.objects) {
+                if (object instanceof LockBolt lockBolt && !(object instanceof SpecialLock)) {
+                    controlledLocks.add(lockBolt);
+                }
+            }
+        }
+
+        private void setLocksOpenInstantly() {
+            for (LockBolt lock : controlledLocks) {
+                lock.restoreState(2, 0);
+            }
+        }
+
+        private void updateLocks(boolean shouldOpen) {
+            for (LockBolt lock : controlledLocks) {
+                lock.update(shouldOpen);
+            }
+        }
+
+        private int getFirstLockCol() {
+            return controlledLocks.stream()
+                    .mapToInt(lock -> lock.getCol(gp))
+                    .min()
+                    .orElse(fallbackLeftCol - 1);
+        }
+
+        private boolean controlsLock(LockBolt lockBolt) {
+            return controlledLocks.contains(lockBolt);
+        }
+
+        private boolean hitWithHammer(int row, int col) {
+            if (!battleStarted || phase == BossPhase.DEAD || !occupies(row, col)) {
+                return false;
+            }
+            if (hurtFlashFrames > 0) {
+                return true;
+            }
+            damage();
+            return true;
+        }
+
+        private boolean hitWithRock(int row, int col, GameObject rock) {
+            if (!battleStarted || !canRockDamageBoss() || !isRockHittingHead(row, col)) {
+                return false;
+            }
+            rock.setActive(false);
+            rememberRockRespawn(rock.getCol(gp));
+            damage();
+            return true;
+        }
+
+        private boolean canRockDamageBoss() {
+            return phase == BossPhase.EMERGE || phase == BossPhase.WAIT_HEAD || phase == BossPhase.CHARGE;
+        }
+
+        private boolean isRockHittingHead(int row, int col) {
+            if (col < headLeftCol || col > headLeftCol + 1) {
+                return false;
+            }
+            int top = getHeadTopRow();
+            int bottom = top + 1;
+            int holeTop = getHoleHeadTopRow();
+            int holeBottom = holeTop + 2;
+            return (row >= top && row <= bottom) || (row >= holeTop - 1 && row <= holeBottom);
+        }
+
+        private void trackPushedRock(GameObject rock, int targetRow, int targetCol) {
+            if (!battleStarted || phase == BossPhase.DEAD || !(rock instanceof Rock) || !rock.isActive()) {
+                return;
+            }
+
+            Point respawnPoint = getNearestRockRespawnPoint(targetCol);
+            if (respawnPoint == null || targetRow <= respawnPoint.y) {
+                return;
+            }
+
+            if (!pendingRespawnRocks.contains(rock)) {
+                pendingRespawnRocks.add(rock);
+            }
+            addPendingRespawn(respawnPoint);
+        }
+
+        private void rememberRockRespawn(int rockCol) {
+            if (rockRespawnPoints.isEmpty()) {
+                return;
+            }
+            Point nearest = getNearestRockRespawnPoint(rockCol);
+            if (nearest == null) {
+                return;
+            }
+            addPendingRespawn(nearest);
+        }
+
+        private Point getNearestRockRespawnPoint(int rockCol) {
+            if (rockRespawnPoints.isEmpty()) {
+                return null;
+            }
+            Point nearest = rockRespawnPoints.get(0);
+            int nearestDistance = Math.abs(nearest.x - rockCol);
+            for (Point point : rockRespawnPoints) {
+                int distance = Math.abs(point.x - rockCol);
+                if (distance < nearestDistance) {
+                    nearest = point;
+                    nearestDistance = distance;
+                }
+            }
+            return nearestDistance <= 2 ? nearest : null;
+        }
+
+        private void addPendingRespawn(Point point) {
+            for (Point pending : pendingRockRespawns) {
+                if (pending.x == point.x && pending.y == point.y) {
+                    return;
+                }
+            }
+            pendingRockRespawns.add(new Point(point));
+        }
+
+        private void respawnPendingRocks() {
+            for (GameObject rock : pendingRespawnRocks) {
+                rock.setActive(false);
+            }
+            pendingRespawnRocks.clear();
+
+            for (Point point : pendingRockRespawns) {
+                if (hasActiveRockNear(point)) {
+                    continue;
+                }
+                int spawnRow = Math.max(1, point.y - 2);
+                while (spawnRow < point.y && !gp.mapLoader.isGround(spawnRow, point.x)) {
+                    spawnRow++;
+                }
+                gp.objects.add(new Rock(point.x * gp.tileSize, spawnRow * gp.tileSize));
+            }
+            pendingRockRespawns.clear();
+        }
+
+        private boolean hasActiveRockNear(Point point) {
+            for (GameObject object : gp.objects) {
+                if (object instanceof Rock
+                        && object.isActive()
+                        && object.getCol(gp) == point.x
+                        && object.getRow(gp) <= point.y) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void damage() {
+            if (phase == BossPhase.DEAD || health <= 0) {
+                return;
+            }
+            health--;
+            hurtFlashFrames = HURT_FLASH_FRAMES;
+            if (health <= 0) {
+                phase = BossPhase.DEAD;
+                battleStarted = false;
+                pendingRockRespawns.clear();
+                pendingRespawnRocks.clear();
+                updateLocks(true);
+            }
+        }
+
+        private boolean isDangerAt(int row, int col) {
+            if (!battleStarted || phase == BossPhase.DEAD) {
+                return false;
+            }
+            if (phase == BossPhase.STUN_FIRE && hasFireAt(row, col)) {
+                return true;
+            }
+            return (phase == BossPhase.CHARGE || phase == BossPhase.EMERGE || phase == BossPhase.WAIT_HEAD)
+                    && occupies(row, col);
+        }
+
+        private boolean hasFireAt(int row, int col) {
+            int fireRow = getHeadTopRow() + 1;
+            if (row != fireRow) {
+                return false;
+            }
+            int leftOffset = headLeftCol - col;
+            int rightOffset = col - (headLeftCol + 1);
+            return (leftOffset >= 1 && leftOffset <= FIRE_RANGE)
+                    || (rightOffset >= 1 && rightOffset <= FIRE_RANGE);
+        }
+
+        private boolean occupies(int row, int col) {
+            return occupiesHead(row, col) || occupiesBody(row, col);
+        }
+
+        private boolean occupiesHead(int row, int col) {
+            int top = getHeadTopRow();
+            return row >= top && row <= top + 1 && col >= headLeftCol && col <= headLeftCol + 1;
+        }
+
+        private boolean occupiesBody(int row, int col) {
+            if (phase == BossPhase.EMERGE || phase == BossPhase.WAIT_HEAD || phase == BossPhase.SUBMERGE) {
+                return false;
+            }
+            int top = getHeadTopRow() + 2;
+            return row >= top && row <= top + 3 && col >= headLeftCol && col <= headLeftCol + 1;
+        }
+
+        private int getHeadTopRow() {
+            return (int) Math.round(headTopRow);
+        }
+
+        private int getHoleHeadTopRow() {
+            return spawnPoints.stream()
+                    .filter(point -> point.x == headLeftCol)
+                    .findFirst()
+                    .map(point -> point.y)
+                    .orElse(fallbackTopRow);
+        }
+
+        private int getHiddenHeadTopRow() {
+            return getHoleHeadTopRow() + 6;
+        }
+
+        private int getCrashTopRow() {
+            return Math.max(1, getHoleHeadTopRow() - 4);
+        }
+
+        private int getClipTopY() {
+            if (phase == BossPhase.EMERGE || phase == BossPhase.SUBMERGE) {
+                return getHoleHeadTopRow() * gp.tileSize;
+            }
+            return 0;
+        }
+
+        private int getClipHeight() {
+            if (phase == BossPhase.EMERGE || phase == BossPhase.SUBMERGE) {
+                return gp.tileSize * 2;
+            }
+            return getHoleHeadTopRow() * gp.tileSize + gp.tileSize * 6;
+        }
+
+        private void draw(Graphics2D g2) {
+            if (phase == BossPhase.DEAD) {
+                return;
+            }
+            if (hurtFlashFrames > 0 && (hurtFlashFrames / 4) % 2 == 0) {
+                return;
+            }
+            if (!battleStarted) {
+                return;
+            }
+            if (phase == BossPhase.SUBMERGE && headTopRow > getHoleHeadTopRow() + 2) {
+                return;
+            }
+
+            int top = getHeadTopRow();
+            java.awt.Shape oldClip = g2.getClip();
+            g2.clipRect(
+                    headLeftCol * gp.tileSize,
+                    getClipTopY(),
+                    gp.tileSize * 2,
+                    getClipHeight());
+            drawHead(g2, headLeftCol, top);
+            drawBodyIfVisible(g2, headLeftCol, top + 2, 0);
+            drawBodyIfVisible(g2, headLeftCol, top + 4, 1);
+            g2.setClip(oldClip);
+            if (phase == BossPhase.STUN_FIRE) {
+                drawFire(g2);
+            }
+        }
+
+        private void drawHead(Graphics2D g2, int col, int row) {
+            int x = col * gp.tileSize;
+            int y = row * gp.tileSize;
+            int width = gp.tileSize;
+            int height = gp.tileSize * 2;
+            g2.drawImage(AssetManager.snakePre, x, y, width, height, null);
+            g2.drawImage(AssetManager.snakePre, x + width * 2, y, -width, height, null);
+        }
+
+        private void drawBodyIfVisible(Graphics2D g2, int col, int row, int bodyIndex) {
+            if (phase == BossPhase.EMERGE || phase == BossPhase.WAIT_HEAD || phase == BossPhase.SUBMERGE) {
+                return;
+            }
+            if (!shouldDrawBodyPart(bodyIndex)) {
+                return;
+            }
+            g2.drawImage(AssetManager.bodySnakePreFrames[bodyIndex],
+                    col * gp.tileSize,
+                    row * gp.tileSize,
+                    gp.tileSize * 2,
+                    gp.tileSize * 2,
+                    null);
+        }
+
+        private boolean shouldDrawBodyPart(int bodyIndex) {
+            if (phase != BossPhase.CHARGE) {
+                return true;
+            }
+            double progress = Math.min(1.0, phaseTimer / (double) CHARGE_FRAMES);
+            return bodyIndex == 0 ? progress >= 0.28 : progress >= 0.58;
+        }
+
+        private void drawFire(Graphics2D g2) {
+            int row = getHeadTopRow() + 1;
+            for (int i = 1; i <= FIRE_RANGE; i++) {
+                g2.drawImage(getFireImage(i),
+                        (headLeftCol - i) * gp.tileSize,
+                        row * gp.tileSize,
+                        gp.tileSize,
+                        gp.tileSize,
+                        null);
+                g2.drawImage(getFireImage(i),
+                        (headLeftCol + 1 + i) * gp.tileSize,
+                        row * gp.tileSize,
+                        gp.tileSize,
+                        gp.tileSize,
+                        null);
+            }
+        }
+
+        private java.awt.image.BufferedImage getFireImage(int offset) {
+            return switch (offset) {
+                case 1 -> AssetManager.fire1;
+                case 2 -> AssetManager.fire2;
+                default -> AssetManager.fire3;
+            };
+        }
+
+        private void drawHealthBar(Graphics2D g2) {
+            if (!battleStarted || phase == BossPhase.DEAD) {
+                return;
+            }
+            int width = 520;
+            int height = 26;
+            int x = (gp.getWidth() - width) / 2;
+            int y = 26;
+            g2.setColor(new Color(30, 10, 10, 210));
+            g2.fillRoundRect(x, y, width, height, 12, 12);
+            g2.setColor(new Color(255, 214, 102));
+            g2.drawRoundRect(x, y, width, height, 12, 12);
+
+            int hpWidth = Math.max(0, (width - 8) * health / MAX_HEALTH);
+            g2.setColor(new Color(190, 30, 30));
+            g2.fillRoundRect(x + 4, y + 4, hpWidth, height - 8, 8, 8);
+
+            g2.setFont(new java.awt.Font("Serif", java.awt.Font.BOLD, 18));
+            String text = "SNAKE BOSS  " + health + "/" + MAX_HEALTH;
+            g2.setColor(Color.WHITE);
+            g2.drawString(text, x + (width - g2.getFontMetrics().stringWidth(text)) / 2, y + 20);
+        }
+
+        private enum BossPhase {
+            IDLE,
+            EMERGE,
+            WAIT_HEAD,
+            CHARGE,
+            STUN_FIRE,
+            RETREAT,
+            SUBMERGE,
+            DEAD
         }
     }
 

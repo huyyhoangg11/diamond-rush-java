@@ -18,6 +18,7 @@ public final class AssetManager {
     public static BufferedImage key;
     public static BufferedImage rock;
     public static BufferedImage door;
+    public static BufferedImage wallSnake;
     public static BufferedImage playerWalkRightHead;
     public static BufferedImage[] playerWalkRightBodies;
     public static BufferedImage playerWalkUpHead;
@@ -28,6 +29,8 @@ public final class AssetManager {
     public static BufferedImage snake;
     public static BufferedImage snake1;
     public static BufferedImage snake2;
+    public static BufferedImage snakePre;
+    public static BufferedImage[] bodySnakePreFrames;
     public static BufferedImage spawn;
     public static BufferedImage statue;
     public static BufferedImage fire1;
@@ -68,6 +71,7 @@ public final class AssetManager {
         key = loadImage("/objects/key.png");
         rock = loadImage("/objects/rock.png");
         door = loadImage("/objects/door.png");
+        wallSnake = loadImage("/objects/wall_snake.png");
         playerWalkRightHead = loadImage("/characters/player/walk/player_walk_right_head.png");
         playerWalkRightBodies = new BufferedImage[] {
                 loadImage("/characters/player/walk/player_walk_right_0_body.png"),
@@ -99,6 +103,11 @@ public final class AssetManager {
         snake1 = loadImage("/objects/snake1.png");
         snake2 = loadImage("/objects/snake2.png");
         snake = snake1;
+        snakePre = loadImage("/objects/snakePre.png");
+        bodySnakePreFrames = new BufferedImage[] {
+                loadImage("/objects/body_snakePre_0.png"),
+                loadImage("/objects/body_snakePre_1.png")
+        };
         statue = loadImage("/objects/statue.png");
         fire1 = loadImage("/objects/fire1.png");
         fire2 = loadImage("/objects/fire2.png");
