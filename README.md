@@ -120,20 +120,14 @@ Nếu phiên bản Java thấp hơn 16, cần cài Java 16 hoặc mới hơn tr�
 
 ## Cách tải và chạy game
 
-### Cách 1: Tải file JAR từ GitHub Releases
+### Cách 1: Tải file JAR từ GitHub release
 
-Người chơi không cần tải toàn bộ source code. Chỉ cần tải file `.jar` trong mục **Releases** của repository.
+Người chơi không cần tải toàn bộ source code. Chỉ cần tải file `.jar` trong mục **release** của repository.
 
 Sau khi tải file, mở terminal tại thư mục chứa file `.jar` và chạy:
 
 ```bash
 java -jar DiamondRush.jar
-```
-
-Nếu file vẫn giữ tên cũ có dấu cách, ví dụ `Project OOP.jar`, hãy chạy:
-
-```bash
-java -jar "Project OOP.jar"
 ```
 
 ### Cách 2: Chạy từ source code
@@ -202,13 +196,13 @@ out/artifacts/Project_OOP_jar/
 Có thể đổi tên file thành:
 
 ```text
-DiamondRush.jar
+DiamondRush2D.jar
 ```
 
 rồi chạy thử:
 
 ```bash
-java -jar DiamondRush.jar
+java -jar DiamondRush2D.jar
 ```
 
 ### Cách 2: Build bằng terminal
@@ -217,11 +211,11 @@ Trên Windows PowerShell:
 
 ```powershell
 Remove-Item -Recurse -Force out -ErrorAction SilentlyContinue
-Remove-Item -Force DiamondRush.jar -ErrorAction SilentlyContinue
+Remove-Item -Force DiamondRush2D.jar -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force out
 javac -d out (Get-ChildItem -Recurse src -Filter *.java).FullName
-jar --create --file DiamondRush.jar --main-class main.Game -C out . -C res .
-java -jar DiamondRush.jar
+jar --create --file DiamondRush2D.jar --main-class main.Game -C out . -C res .
+java -jar DiamondRush2D.jar
 ```
 
 Trên macOS/Linux/Git Bash:
@@ -230,8 +224,8 @@ Trên macOS/Linux/Git Bash:
 rm -rf out DiamondRush.jar
 mkdir -p out
 javac -d out $(find src -name "*.java")
-jar --create --file DiamondRush.jar --main-class main.Game -C out . -C res .
-java -jar DiamondRush.jar
+jar --create --file DiamondRush2D.jar --main-class main.Game -C out . -C res .
+java -jar DiamondRush2D.jar
 ```
 
 Lưu ý: thư mục `out/` là thư mục build tạm và thường được đưa vào `.gitignore`. Không cần push thư mục này lên GitHub. File `.jar` nên được upload vào mục **GitHub Releases**.
