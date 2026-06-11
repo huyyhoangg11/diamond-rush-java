@@ -11,11 +11,14 @@ public class SoundManager {
 
     public static final String SFX_DIE = "die";
     public static final String SFX_EAT_DIAMOND = "eat_diamond";
+    public static final String SFX_CHECKPOINT = "checkpoint";
+    public static final String SFX_HAMMER_HIT = "hammer_hit";
     public static final String SFX_LEVEL_CLEAR = "level_clear";
     public static final String SFX_LOSE_LIFE = "mat_1_mang";
     public static final String SFX_MENU_MOVE = "menu_move";
     public static final String SFX_MENU_SELECT = "menu_select";
     public static final String SFX_PUSH_ROCK = "push_rock";
+    public static final String SFX_ROCK_FALL = "rock_fall";
     public static final String SFX_WALK_DIRT = "walk_dirt";
 
     private enum BgmTrack {
@@ -28,11 +31,14 @@ public class SoundManager {
     private Clip stageBgmClip;
     private Clip dieClip;
     private Clip eatDiamondClip;
+    private Clip checkpointClip;
+    private Clip hammerHitClip;
     private Clip levelClearClip;
     private Clip loseLifeClip;
     private Clip menuMoveClip;
     private Clip menuSelectClip;
     private Clip pushRockClip;
+    private Clip rockFallClip;
     private Clip walkDirtClip;
     private BgmTrack activeBgm = BgmTrack.NONE;
     private boolean muted = false;
@@ -42,11 +48,14 @@ public class SoundManager {
         stageBgmClip = load("/sounds/bgm/stage_bgm.wav");
         dieClip = load("/sounds/sfx/die.wav");
         eatDiamondClip = load("/sounds/sfx/eat_diamond.wav");
+        checkpointClip = load("/sounds/sfx/checkpoint.wav");
+        hammerHitClip = load("/sounds/sfx/hammer_hit.wav");
         levelClearClip = load("/sounds/sfx/level_clear.wav");
         loseLifeClip = load("/sounds/sfx/mat_1_mang.wav");
         menuMoveClip = load("/sounds/sfx/menu_move.wav");
         menuSelectClip = load("/sounds/sfx/menu_select.wav");
         pushRockClip = load("/sounds/sfx/push_rock.wav");
+        rockFallClip = load("/sounds/sfx/rock_fall.wav");
         walkDirtClip = load("/sounds/sfx/walk_dirt.wav");
     }
 
@@ -100,11 +109,14 @@ public class SoundManager {
         Clip clip = switch (name) {
             case SFX_DIE -> dieClip;
             case SFX_EAT_DIAMOND -> eatDiamondClip;
+            case SFX_CHECKPOINT -> checkpointClip;
+            case SFX_HAMMER_HIT -> hammerHitClip;
             case SFX_LEVEL_CLEAR -> levelClearClip;
             case SFX_LOSE_LIFE -> loseLifeClip;
             case SFX_MENU_MOVE -> menuMoveClip;
             case SFX_MENU_SELECT -> menuSelectClip;
             case SFX_PUSH_ROCK -> pushRockClip;
+            case SFX_ROCK_FALL -> rockFallClip;
             case SFX_WALK_DIRT -> walkDirtClip;
             default -> null;
         };

@@ -17,6 +17,7 @@ public class DiamondPre extends Diamond {
         if (!active) {
             return;
         }
+        drawGlow(g2, gp);
         g2.drawImage(AssetManager.diamondPre, worldX, worldY, gp.tileSize, gp.tileSize, null);
     }
 }

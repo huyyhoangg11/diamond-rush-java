@@ -42,6 +42,7 @@ public class HowToPlayScreen implements Screen {
         int h = gsm.getGamePanel().getHeight();
 
         g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         drawBackground(g2, w, h);
         drawFrame(g2, w, h);
 
@@ -77,8 +78,8 @@ public class HowToPlayScreen implements Screen {
     private void drawControlsPage(Graphics2D g2, int w, int h) {
         drawTitle(g2, "HOW TO PLAY", "PAGE 1 / 2 - CONTROLS", w, 166);
 
-        int leftX = 250;
-        int rightX = 650;
+        int leftX = 180;
+        int rightX = 620;
         int startY = 270;
         int rowH = 74;
 
@@ -98,8 +99,8 @@ public class HowToPlayScreen implements Screen {
     private void drawObjectsPage(Graphics2D g2, int w, int h) {
         drawTitle(g2, "HOW TO PLAY", "PAGE 2 / 2 - OBJECTS", w, 166);
 
-        int leftX = 190;
-        int rightX = 628;
+        int leftX = 153;
+        int rightX = 617;
         int startY = 270;
         int rowH = 74;
 
@@ -126,27 +127,46 @@ public class HowToPlayScreen implements Screen {
     }
 
     private void drawControlItem(Graphics2D g2, int x, int y, String keyName, String text) {
+        int cardW = 400;
+        int cardH = 58;
+        int keyBoxW = 122;
+        int cardY = y - 42;
+
         g2.setColor(new Color(255, 255, 255, 24));
-        g2.fillRoundRect(x - 18, y - 42, 340, 58, 14, 14);
+        g2.fillRoundRect(x, cardY, cardW, cardH, 14, 14);
+
+        g2.setColor(new Color(35, 21, 10, 120));
+        g2.fillRoundRect(x + 12, cardY + 10, keyBoxW, cardH - 20, 10, 10);
 
         g2.setFont(new Font("Serif", Font.BOLD, 24));
-        drawOutlinedText(g2, keyName, x, y - 6, new Color(255, 222, 116), new Color(48, 26, 8));
+        drawCenteredOutlinedText(g2, keyName, x + 12, x + 12 + keyBoxW, y - 6,
+                new Color(255, 222, 116), new Color(48, 26, 8));
 
         g2.setFont(new Font("Serif", Font.PLAIN, 19));
-        drawOutlinedText(g2, text, x + 126, y - 6, new Color(245, 237, 210), new Color(42, 24, 10));
+        drawFittedOutlinedText(g2, text, x + 154, y - 6, cardW - 174, 16,
+                new Color(245, 237, 210), new Color(42, 24, 10));
     }
 
     private void drawObjectItem(Graphics2D g2, BufferedImage image, int x, int y, String name, String text) {
+        int cardW = 430;
+        int cardH = 58;
         int iconSize = 48;
+        int cardY = y - 42;
+
         g2.setColor(new Color(255, 255, 255, 24));
-        g2.fillRoundRect(x - 14, y - 42, 390, 58, 14, 14);
-        g2.drawImage(image, x, y - 40, iconSize, iconSize, null);
+        g2.fillRoundRect(x, cardY, cardW, cardH, 14, 14);
+
+        g2.setColor(new Color(35, 21, 10, 120));
+        g2.fillRoundRect(x + 10, cardY + 7, iconSize + 8, iconSize + 2, 10, 10);
+        g2.drawImage(image, x + 14, cardY + 5, iconSize, iconSize, null);
 
         g2.setFont(new Font("Serif", Font.BOLD, 21));
-        drawOutlinedText(g2, name, x + 62, y - 19, new Color(255, 222, 116), new Color(48, 26, 8));
+        drawFittedOutlinedText(g2, name, x + 78, y - 19, cardW - 98, 17,
+                new Color(255, 222, 116), new Color(48, 26, 8));
 
         g2.setFont(new Font("Serif", Font.PLAIN, 17));
-        drawOutlinedText(g2, text, x + 62, y + 5, new Color(245, 237, 210), new Color(42, 24, 10));
+        drawFittedOutlinedText(g2, text, x + 78, y + 5, cardW - 98, 14,
+                new Color(245, 237, 210), new Color(42, 24, 10));
     }
 
     private void drawFooter(Graphics2D g2, int w, int h) {
@@ -164,6 +184,24 @@ public class HowToPlayScreen implements Screen {
         g2.drawString(text, x, y + 2);
         g2.setColor(fill);
         g2.drawString(text, x, y);
+    }
+
+    private void drawCenteredOutlinedText(Graphics2D g2, String text, int left, int right, int y,
+                                          Color fill, Color outline) {
+        int x = left + (right - left - g2.getFontMetrics().stringWidth(text)) / 2;
+        drawOutlinedText(g2, text, x, y, fill, outline);
+    }
+
+    private void drawFittedOutlinedText(Graphics2D g2, String text, int x, int y, int maxWidth, int minSize,
+                                        Color fill, Color outline) {
+        Font originalFont = g2.getFont();
+        Font fittedFont = originalFont;
+        while (fittedFont.getSize() > minSize && g2.getFontMetrics(fittedFont).stringWidth(text) > maxWidth) {
+            fittedFont = fittedFont.deriveFont((float) fittedFont.getSize() - 1f);
+        }
+        g2.setFont(fittedFont);
+        drawOutlinedText(g2, text, x, y, fill, outline);
+        g2.setFont(originalFont);
     }
 
     private int getCenterX(Graphics2D g2, String text, int w) {

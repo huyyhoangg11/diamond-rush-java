@@ -166,7 +166,7 @@ public class Player extends Entity {
             object.setActive(false);
             score++;
             gp.playSfx(SoundManager.SFX_EAT_DIAMOND);
-            gp.levelComplete = true;
+            gp.showFinalDiamondCelebration();
             enteredDoor = true;
         } else if (object instanceof Diamond) {
             object.setActive(false);
@@ -175,11 +175,11 @@ public class Player extends Entity {
         } else if (object instanceof Hammer) {
             object.setActive(false);
             gp.acquireHammer();
-            gp.playSfx(SoundManager.SFX_EAT_DIAMOND);
+            gp.playSfx(SoundManager.SFX_CHECKPOINT);
         } else if (object instanceof Key) {
             object.setActive(false);
             gp.acquireKey();
-            gp.playSfx(SoundManager.SFX_EAT_DIAMOND);
+            gp.playSfx(SoundManager.SFX_CHECKPOINT);
         } else if (object != null && object.collision) {
             return false;
         }
@@ -247,44 +247,50 @@ public class Player extends Entity {
     }
 
     private void useHammer() {
-        useHammerAt(getRow(), getCol() - 1);
-        useHammerAt(getRow(), getCol() + 1);
-        useHammerAt(getRow() - 1, getCol());
-        useHammerAt(getRow() + 1, getCol());
+        boolean hit = false;
+        hit |= useHammerAt(getRow(), getCol() - 1);
+        hit |= useHammerAt(getRow(), getCol() + 1);
+        hit |= useHammerAt(getRow() - 1, getCol());
+        hit |= useHammerAt(getRow() + 1, getCol());
+        if (hit) {
+            gp.playSfx(SoundManager.SFX_HAMMER_HIT);
+        }
     }
 
-    private void useHammerAt(int targetRow, int targetCol) {
+    private boolean useHammerAt(int targetRow, int targetCol) {
         if (gp.hitBossWithHammerAt(targetRow, targetCol)) {
             startHammerAnimation(targetRow, targetCol);
-            return;
+            return true;
         }
 
         Enemy enemy = gp.getEnemyAt(targetRow, targetCol);
         if (enemy != null) {
             startHammerAnimation(targetRow, targetCol);
             enemy.stun();
-            return;
+            return true;
         }
 
         GameObject object = gp.getObjectAt(targetRow, targetCol);
         if (object instanceof Rock || object instanceof Diamond || object instanceof Door) {
             startHammerAnimation(targetRow, targetCol);
-            return;
+            return true;
         }
         if (object != null) {
             startHammerAnimation(targetRow, targetCol);
-            return;
+            return true;
         }
 
         if (gp.mapLoader.getTileAt(targetRow, targetCol) == MapLoader.BUSH) {
             startHammerAnimation(targetRow, targetCol);
             gp.mapLoader.clearBushAt(targetRow, targetCol);
-            return;
+            return true;
         }
 
         if (gp.mapLoader.clearPlasticClusterAt(targetRow, targetCol)) {
             startHammerAnimation(targetRow, targetCol);
+            return true;
         }
+        return false;
     }
 
     private void startHammerAnimation(int targetRow, int targetCol) {

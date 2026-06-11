@@ -26,11 +26,16 @@ import main.ui.UI;
 import main.util.AssetManager;
 
 import javax.swing.JPanel;
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
+import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,7 +43,9 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
@@ -72,6 +79,8 @@ public class GamePanel extends JPanel {
     private static final int ROCK_MOVE_INTERVAL_FRAMES = 10;
     private static final int FINAL_DEATH_ZOOM_FRAMES = 48;
     private static final double FINAL_DEATH_ZOOM_SCALE = 2.55;
+    private static final int RESET_SPAWN_ZOOM_FRAMES = 54;
+    private static final double RESET_SPAWN_ZOOM_SCALE = 1.75;
     private static final Path SAVE_PATH = Path.of(System.getProperty("user.home"), ".diamondrush_save.properties");
 
     public final int tileSize = GameConfig.TILE_SIZE;
@@ -99,6 +108,7 @@ public class GamePanel extends JPanel {
 
     private final List<LevelDefinition> levels = new ArrayList<>();
     private final List<Point> spawnPoints = new ArrayList<>();
+    private final Set<GameObject> fallingRocks = Collections.newSetFromMap(new IdentityHashMap<>());
     private final List<Set<String>> collectedDiamondKeysByLevel = new ArrayList<>();
     private final Random random = new Random();
     private LevelSnapshot currentCheckpointSnapshot;
@@ -112,7 +122,14 @@ public class GamePanel extends JPanel {
     private int snakeCountInLevel;
     private boolean finalDeathZoomActive;
     private int finalDeathZoomFrame;
+    private boolean resetSpawnZoomActive;
+    private int resetSpawnZoomFrame;
     private SnakeBossController snakeBossController;
+    private TutorialPrompt activeTutorialPrompt;
+    private boolean tutorialEnterWasDown;
+    private int tutorialFrame;
+    private boolean hammerTutorialShown;
+    private boolean suppressLevelTutorialPrompts;
 
     public int selectedLevelIndex;
 
@@ -228,6 +245,7 @@ public class GamePanel extends JPanel {
         selectedLevelIndex = 0;
         hasHammer = false;
         hasKey = false;
+        hammerTutorialShown = false;
         loadLevel(0);
         saveGame();
         gsm.setState(GameState.PLAYING);
@@ -345,17 +363,25 @@ public class GamePanel extends JPanel {
         if (currentCheckpointSnapshot != null) {
             restoreSnapshot(currentCheckpointSnapshot, currentLives);
         } else {
-            loadLevel(currentLevelIndex);
-            player.lives = currentLives;
+            suppressLevelTutorialPrompts = true;
+            try {
+                loadLevel(currentLevelIndex);
+                player.lives = currentLives;
+            } finally {
+                suppressLevelTutorialPrompts = false;
+            }
         }
         rockPressureFrames = 0;
         gsm.setState(GameState.PLAYING);
         keyH.clearActionKeys();
         keyH.clearMovementKeys();
         updateCamera();
+        playSfx(SoundManager.SFX_CHECKPOINT);
+        startResetSpawnZoom();
     }
 
     public void startFinalDeathZoom() {
+        resetSpawnZoom();
         finalDeathZoomActive = true;
         finalDeathZoomFrame = 0;
     }
@@ -376,6 +402,26 @@ public class GamePanel extends JPanel {
         finalDeathZoomFrame = 0;
     }
 
+    private void startResetSpawnZoom() {
+        resetSpawnZoomActive = true;
+        resetSpawnZoomFrame = 0;
+    }
+
+    private void resetSpawnZoom() {
+        resetSpawnZoomActive = false;
+        resetSpawnZoomFrame = 0;
+    }
+
+    private void advanceResetSpawnZoom() {
+        if (!resetSpawnZoomActive) {
+            return;
+        }
+        resetSpawnZoomFrame++;
+        if (resetSpawnZoomFrame >= RESET_SPAWN_ZOOM_FRAMES) {
+            resetSpawnZoom();
+        }
+    }
+
     private double getFinalDeathZoomScale() {
         if (!finalDeathZoomActive) {
             return 1.0;
@@ -383,6 +429,15 @@ public class GamePanel extends JPanel {
         double progress = Math.min(1.0, finalDeathZoomFrame / (double) FINAL_DEATH_ZOOM_FRAMES);
         double eased = 1.0 - Math.pow(1.0 - progress, 3);
         return 1.0 + (FINAL_DEATH_ZOOM_SCALE - 1.0) * eased;
+    }
+
+    private double getResetSpawnZoomScale() {
+        if (!resetSpawnZoomActive) {
+            return 1.0;
+        }
+        double progress = Math.min(1.0, resetSpawnZoomFrame / (double) RESET_SPAWN_ZOOM_FRAMES);
+        double eased = 1.0 - Math.pow(1.0 - progress, 3);
+        return RESET_SPAWN_ZOOM_SCALE - (RESET_SPAWN_ZOOM_SCALE - 1.0) * eased;
     }
 
     private void loadLevel(int index) {
@@ -398,9 +453,11 @@ public class GamePanel extends JPanel {
         snakeVariantOffset = random.nextInt(2);
         snakeCountInLevel = 0;
         resetFinalDeathZoom();
+        resetSpawnZoom();
         objects.clear();
         enemies.clear();
         spawnPoints.clear();
+        fallingRocks.clear();
         snakeBossController = null;
         currentCheckpointSnapshot = null;
 
@@ -412,6 +469,7 @@ public class GamePanel extends JPanel {
         player = new Player(this, keyH, spawnRow, spawnCol);
         applyRememberedCollectedDiamonds(index);
         rememberCheckpointAtCurrentSpawn();
+        showFirstLevelTutorialIfNeeded(index);
 
         updateCamera();
     }
@@ -494,6 +552,7 @@ public class GamePanel extends JPanel {
     public void acquireHammer() {
         hasHammer = true;
         updateHammerPickupsForOwnership();
+        showHammerTutorialIfNeeded();
     }
 
     public boolean hasKey() {
@@ -503,6 +562,55 @@ public class GamePanel extends JPanel {
     public void acquireKey() {
         hasKey = true;
         updateKeyPickupsForOwnership();
+    }
+
+    private void showFirstLevelTutorialIfNeeded(int levelIndex) {
+        if (!suppressLevelTutorialPrompts && gsm != null && levelIndex == 0) {
+            showGameplayTutorial(TutorialPrompt.BASIC_CONTROLS);
+        }
+    }
+
+    private void showHammerTutorialIfNeeded() {
+        if (!hammerTutorialShown) {
+            hammerTutorialShown = true;
+            showGameplayTutorial(TutorialPrompt.HAMMER);
+        }
+    }
+
+    private void showBossTutorial() {
+        showGameplayTutorial(TutorialPrompt.BOSS);
+    }
+
+    public void showFinalDiamondCelebration() {
+        showGameplayTutorial(TutorialPrompt.FINAL_DIAMOND);
+    }
+
+    private void showGameplayTutorial(TutorialPrompt prompt) {
+        activeTutorialPrompt = prompt;
+        tutorialEnterWasDown = true;
+        tutorialFrame = 0;
+        keyH.clearActionKeys();
+        keyH.clearMovementKeys();
+    }
+
+    private void handleGameplayTutorialInput() {
+        tutorialFrame++;
+        boolean enterDown = keyH.enterPressed;
+        if (enterDown && !tutorialEnterWasDown) {
+            TutorialPrompt closedPrompt = activeTutorialPrompt;
+            activeTutorialPrompt = null;
+            tutorialEnterWasDown = true;
+            keyH.clearActionKeys();
+            keyH.clearMovementKeys();
+            if (closedPrompt == TutorialPrompt.BOSS && snakeBossController != null) {
+                snakeBossController.confirmBossIntro();
+            } else if (closedPrompt == TutorialPrompt.FINAL_DIAMOND) {
+                levelComplete = true;
+                completeCurrentLevel();
+            }
+            return;
+        }
+        tutorialEnterWasDown = enterDown;
     }
 
     public void playSfx(String name) {
@@ -565,7 +673,7 @@ public class GamePanel extends JPanel {
     private void rememberCollectedDiamondsForCurrentLevel() {
         Set<String> collectedDiamondKeys = collectedDiamondKeysByLevel.get(currentLevelIndex);
         for (GameObject object : objects) {
-            if (object instanceof Diamond && !object.isActive()) {
+            if (isPersistentlyCollectedDiamond(object) && !object.isActive()) {
                 collectedDiamondKeys.add(objectKey(object.getRow(this), object.getCol(this)));
             }
         }
@@ -579,13 +687,19 @@ public class GamePanel extends JPanel {
 
         int collected = 0;
         for (GameObject object : objects) {
-            if (object instanceof Diamond
+            if (isPersistentlyCollectedDiamond(object)
                     && collectedDiamondKeys.contains(objectKey(object.getRow(this), object.getCol(this)))) {
                 object.setActive(false);
                 collected++;
+            } else if (object instanceof FinalDiamondPre) {
+                collectedDiamondKeys.remove(objectKey(object.getRow(this), object.getCol(this)));
             }
         }
         player.score = collected;
+    }
+
+    private boolean isPersistentlyCollectedDiamond(GameObject object) {
+        return object instanceof Diamond && !(object instanceof FinalDiamondPre);
     }
 
     private String objectKey(int row, int col) {
@@ -593,8 +707,15 @@ public class GamePanel extends JPanel {
     }
 
     public void update() {
+        if (activeTutorialPrompt != null && gsm != null && gsm.getState() == GameState.PLAYING) {
+            handleGameplayTutorialInput();
+            advanceResetSpawnZoom();
+            return;
+        }
+
         gsm.update(keyH);
         handleResetShortcut();
+        advanceResetSpawnZoom();
 
         if (gsm.getState() != GameState.PLAYING || gameOver || levelComplete) {
             return;
@@ -764,14 +885,54 @@ public class GamePanel extends JPanel {
             int belowRow = row + 1;
 
             if (canRockOccupy(belowRow, col)) {
-                moveRockTo(object, belowRow, col);
+                boolean hitEnemy = getEnemyAt(belowRow, col) != null;
+                if (moveRockTo(object, belowRow, col)) {
+                    updateRockFallSoundAfterMove(object, hitEnemy);
+                }
             } else {
                 int slideDirection = getRockSlideDirection(row, col);
                 if (slideDirection != 0) {
-                    moveRockTo(object, belowRow, col + slideDirection);
+                    boolean hitEnemy = getEnemyAt(belowRow, col + slideDirection) != null;
+                    if (moveRockTo(object, belowRow, col + slideDirection)) {
+                        updateRockFallSoundAfterMove(object, hitEnemy);
+                    }
+                } else {
+                    finishRockFall(object);
                 }
             }
         }
+    }
+
+    private void updateRockFallSoundAfterMove(GameObject object, boolean hitEnemy) {
+        if (!(object instanceof Rock)) {
+            return;
+        }
+
+        if (hitEnemy) {
+            playSfx(SoundManager.SFX_ROCK_FALL);
+            fallingRocks.remove(object);
+            return;
+        }
+
+        if (canRockKeepFalling(object)) {
+            fallingRocks.add(object);
+            return;
+        }
+
+        playSfx(SoundManager.SFX_ROCK_FALL);
+        fallingRocks.remove(object);
+    }
+
+    private void finishRockFall(GameObject object) {
+        if (object instanceof Rock && fallingRocks.remove(object)) {
+            playSfx(SoundManager.SFX_ROCK_FALL);
+        }
+    }
+
+    private boolean canRockKeepFalling(GameObject object) {
+        int row = object.getRow(this);
+        int col = object.getCol(this);
+        return canRockOccupy(row + 1, col) || getRockSlideDirection(row, col) != 0;
     }
 
     private void updateStatues() {
@@ -857,9 +1018,9 @@ public class GamePanel extends JPanel {
         return false;
     }
 
-    private void moveRockTo(GameObject rock, int row, int col) {
+    private boolean moveRockTo(GameObject rock, int row, int col) {
         if (snakeBossController != null && snakeBossController.hitWithRock(row, col, rock)) {
-            return;
+            return false;
         }
         if (snakeBossController != null) {
             snakeBossController.trackPushedRock(rock, row, col);
@@ -869,6 +1030,7 @@ public class GamePanel extends JPanel {
             enemy.crushByRock();
         }
         rock.setGridPosition(this, row, col);
+        return true;
     }
 
     private int getRockSlideDirection(int row, int col) {
@@ -1107,6 +1269,7 @@ public class GamePanel extends JPanel {
         levelCompletionRecorded = false;
         rockPressureFrames = 0;
         rockMoveCounter = 0;
+        fallingRocks.clear();
     }
 
     private GameObject createObject(ObjectSnapshot objectSnapshot) {
@@ -1157,6 +1320,371 @@ public class GamePanel extends JPanel {
 
     private int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(value, max));
+    }
+
+    private void drawGameplayTutorialOverlay(Graphics2D g2) {
+        if (activeTutorialPrompt == null) {
+            return;
+        }
+
+        int w = getWidth();
+        int h = getHeight();
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g2.setColor(new Color(0, 0, 0, activeTutorialPrompt == TutorialPrompt.HAMMER ? 72 : 46));
+        g2.fillRect(0, 0, w, h);
+
+        if (activeTutorialPrompt == TutorialPrompt.FINAL_DIAMOND) {
+            drawFinalDiamondCelebrationOverlay(g2, w, h);
+            return;
+        }
+
+        if (activeTutorialPrompt == TutorialPrompt.BOSS) {
+            drawBossIntroOverlay(g2, w, h);
+            return;
+        }
+
+        if (activeTutorialPrompt == TutorialPrompt.HAMMER) {
+            drawHammerPickupFocus(g2, w, h);
+        }
+
+        int barMargin = 44;
+        int barW = w - barMargin * 2;
+        int barH = activeTutorialPrompt == TutorialPrompt.BASIC_CONTROLS ? 206 : 190;
+        int x = barMargin;
+        int y = h - barH - 34;
+
+        g2.setColor(new Color(18, 11, 5, 225));
+        g2.fillRoundRect(x + 7, y + 8, barW, barH, 24, 24);
+        GradientPaint panelPaint = new GradientPaint(x, y,
+                new Color(105, 68, 28, 242),
+                x, y + barH,
+                new Color(36, 21, 10, 242));
+        g2.setPaint(panelPaint);
+        g2.fillRoundRect(x, y, barW, barH, 24, 24);
+        g2.setStroke(new BasicStroke(3f));
+        g2.setColor(new Color(255, 214, 102, 235));
+        g2.drawRoundRect(x, y, barW, barH, 24, 24);
+        g2.setColor(new Color(255, 248, 210, 92));
+        g2.drawRoundRect(x + 10, y + 10, barW - 20, barH - 20, 18, 18);
+
+        drawTutorialContent(g2, activeTutorialPrompt, x, y, barW, barH);
+    }
+
+    private void drawFinalDiamondCelebrationOverlay(Graphics2D g2, int w, int h) {
+        double settle = Math.min(1.0, tutorialFrame / 28.0);
+        double eased = 1.0 - Math.pow(1.0 - settle, 3);
+        double pulse = Math.sin(tutorialFrame / 8.0) * 0.05;
+
+        g2.setColor(new Color(0, 0, 0, 132));
+        g2.fillRect(0, 0, w, h);
+
+        int panelW = 760;
+        int panelH = 330;
+        int x = (w - panelW) / 2;
+        int y = h - panelH - 58;
+
+        int cx = w / 2;
+        int cy = Math.max(150, y - 132);
+        int diamondSize = (int) Math.round(tileSize * (1.0 + 2.55 * eased + pulse));
+
+        for (int i = 7; i >= 1; i--) {
+            int glowSize = diamondSize + i * 34;
+            int alpha = Math.max(14, 86 - i * 9);
+            g2.setColor(new Color(95, 230, 255, alpha));
+            g2.fillOval(cx - glowSize / 2, cy - glowSize / 2, glowSize, glowSize);
+        }
+        g2.setColor(new Color(255, 255, 230, 135));
+        g2.setStroke(new BasicStroke(4f));
+        g2.drawOval(cx - diamondSize / 2 - 16, cy - diamondSize / 2 - 16, diamondSize + 32, diamondSize + 32);
+        g2.drawImage(AssetManager.diamondPre, cx - diamondSize / 2, cy - diamondSize / 2,
+                diamondSize, diamondSize, null);
+
+        g2.setColor(new Color(11, 8, 5, 226));
+        g2.fillRoundRect(x + 8, y + 10, panelW, panelH, 28, 28);
+        GradientPaint paint = new GradientPaint(x, y,
+                new Color(38, 75, 90, 244),
+                x, y + panelH,
+                new Color(24, 15, 9, 246));
+        g2.setPaint(paint);
+        g2.fillRoundRect(x, y, panelW, panelH, 28, 28);
+        g2.setStroke(new BasicStroke(3f));
+        g2.setColor(new Color(155, 242, 255, 232));
+        g2.drawRoundRect(x, y, panelW, panelH, 28, 28);
+        g2.setColor(new Color(255, 248, 205, 86));
+        g2.drawRoundRect(x + 12, y + 12, panelW - 24, panelH - 24, 20, 20);
+
+        g2.setFont(new Font("Georgia", Font.BOLD, 42));
+        String title = "CHIẾN THẮNG!";
+        drawOutlinedText(g2, title, getCenterX(g2, title, w), y + 82,
+                new Color(255, 232, 122), new Color(36, 22, 9));
+
+        g2.setFont(new Font("Georgia", Font.BOLD, 22));
+        drawTutorialParagraph(g2,
+                "Bạn đã đánh bại con rắn cổ, lấy lại viên kim cương cuối cùng và mở được lối thoát khỏi hầm ngục.",
+                x + 80, y + 142, panelW - 160, 30, 22);
+
+        g2.setFont(new Font("Georgia", Font.BOLD, 23));
+        String escaped = "Thoát khỏi hầm ngục thành công";
+        drawOutlinedText(g2, escaped, getCenterX(g2, escaped, w), y + 232,
+                new Color(128, 242, 255), new Color(18, 38, 47));
+
+        g2.setFont(new Font("Georgia", Font.BOLD, 20));
+        String hint = "Nhấn ENTER để tiếp tục";
+        drawOutlinedText(g2, hint, getCenterX(g2, hint, w), y + panelH - 36,
+                new Color(255, 245, 205), new Color(45, 25, 10));
+    }
+
+    private void drawBossIntroOverlay(Graphics2D g2, int w, int h) {
+        int panelW = 860;
+        int panelH = 520;
+        int x = (w - panelW) / 2;
+        int y = (h - panelH) / 2 + 10;
+
+        g2.setColor(new Color(0, 0, 0, 118));
+        g2.fillRect(0, 0, w, h);
+
+        for (int i = 5; i >= 1; i--) {
+            g2.setColor(new Color(255, 190, 60, 15 + i * 4));
+            g2.drawRoundRect(x - i * 5, y - i * 5, panelW + i * 10, panelH + i * 10, 34, 34);
+        }
+
+        g2.setColor(new Color(12, 7, 4, 232));
+        g2.fillRoundRect(x + 9, y + 11, panelW, panelH, 30, 30);
+        GradientPaint paint = new GradientPaint(x, y,
+                new Color(92, 42, 24, 246),
+                x, y + panelH,
+                new Color(22, 13, 8, 248));
+        g2.setPaint(paint);
+        g2.fillRoundRect(x, y, panelW, panelH, 30, 30);
+        g2.setStroke(new BasicStroke(3.2f));
+        g2.setColor(new Color(255, 206, 92, 238));
+        g2.drawRoundRect(x, y, panelW, panelH, 30, 30);
+        g2.setColor(new Color(255, 248, 200, 75));
+        g2.drawRoundRect(x + 12, y + 12, panelW - 24, panelH - 24, 22, 22);
+
+        int pad = 42;
+        int artX = x + pad;
+        int artY = y + 116;
+        int artW = 202;
+        int artH = 246;
+        int contentX = x + 294;
+        int contentW = panelW - 336;
+
+        drawBossSnakeEmblem(g2, artX, artY, artW, artH);
+
+        g2.setFont(new Font("Georgia", Font.BOLD, 42));
+        drawOutlinedText(g2, "RẮN CANH CỬA", contentX, y + 76,
+                new Color(255, 226, 112), new Color(48, 22, 8));
+        g2.setFont(new Font("Georgia", Font.BOLD, 20));
+        drawOutlinedText(g2, "Lời nguyền dưới hầm mỏ", contentX + 4, y + 110,
+                new Color(255, 246, 210), new Color(48, 22, 8));
+
+        int storyY = y + 158;
+        drawTutorialParagraph(g2,
+                "Ngày xưa, lõi kim cương ở tầng sâu nhất đã đánh thức một con rắn cổ. Nó nuốt ánh sáng của hầm mỏ, lớn dần qua từng năm và cuộn mình trước cánh cửa cuối cùng.",
+                contentX, storyY, contentW, 24, 19);
+        drawTutorialParagraph(g2,
+                "Khi cửa đá khép lại, nó sẽ trồi lên từ lòng đất. Muốn thoát khỏi hầm ngục, hãy dùng chính những viên đá phía trên để giáng xuống đầu nó.",
+                contentX, storyY + 96, contentW, 24, 19);
+
+        int cardY = y + 354;
+        drawBossTipCard(g2, x + pad, cardY, "NÉ ĐÒN", "Tránh đầu rắn và luồng lửa khi nó lao lên.", 365);
+        drawBossTipCard(g2, x + panelW - pad - 365, cardY, "ĐÁNH BẠI", "Đẩy đá rơi xuống đầu rắn khi nó trồi lên.", 365);
+
+        g2.setFont(new Font("Georgia", Font.BOLD, 21));
+        String hint = "Nhấn ENTER để bước vào trận chiến";
+        drawOutlinedText(g2, hint, getCenterX(g2, hint, w), y + panelH - 35,
+                new Color(255, 245, 205), new Color(45, 25, 10));
+    }
+
+    private void drawBossSnakeEmblem(Graphics2D g2, int x, int y, int width, int height) {
+        int pulse = (int) Math.round(Math.sin(tutorialFrame / 9.0) * 8);
+
+        g2.setColor(new Color(255, 190, 60, 30));
+        g2.fillRoundRect(x - 16 - pulse / 2, y - 16 - pulse / 2, width + 32 + pulse, height + 32 + pulse, 28, 28);
+        g2.setColor(new Color(13, 8, 5, 188));
+        g2.fillRoundRect(x, y, width, height, 24, 24);
+        g2.setStroke(new BasicStroke(2.4f));
+        g2.setColor(new Color(255, 209, 95, 140));
+        g2.drawRoundRect(x, y, width, height, 24, 24);
+
+        int imageH = height - 42;
+        int halfW = Math.max(1, AssetManager.snakePre.getWidth() * imageH / AssetManager.snakePre.getHeight());
+        int centerX = x + width / 2;
+        int drawY = y + 22;
+        int leftX = centerX - halfW;
+        int rightX = centerX;
+
+        g2.drawImage(AssetManager.snakePre, leftX, drawY, halfW, imageH, null);
+        g2.drawImage(AssetManager.snakePre, rightX + halfW, drawY, -halfW, imageH, null);
+
+        g2.setColor(new Color(255, 70, 54, 90));
+        g2.fillOval(centerX - 38, y + 74, 28, 18);
+        g2.fillOval(centerX + 10, y + 74, 28, 18);
+        g2.setColor(new Color(255, 226, 120, 78));
+        g2.drawLine(centerX, y + 46, centerX, y + height - 28);
+    }
+
+    private void drawBossTipCard(Graphics2D g2, int x, int y, String title, String text, int cardW) {
+        int cardH = 82;
+        g2.setColor(new Color(255, 255, 255, 26));
+        g2.fillRoundRect(x, y, cardW, cardH, 14, 14);
+        g2.setColor(new Color(25, 12, 7, 132));
+        g2.fillRoundRect(x + 12, y + 12, 104, cardH - 24, 10, 10);
+
+        g2.setFont(new Font("Georgia", Font.BOLD, 17));
+        drawOutlinedText(g2, title, x + 22, y + 48,
+                new Color(255, 226, 110), new Color(42, 22, 7));
+        g2.setFont(new Font("Georgia", Font.BOLD, 16));
+        drawTutorialParagraph(g2, text, x + 134, y + 32, cardW - 152, 20, 14);
+    }
+
+    private void drawHammerPickupFocus(Graphics2D g2, int w, int h) {
+        double settle = Math.min(1.0, tutorialFrame / 24.0);
+        double eased = 1.0 - Math.pow(1.0 - settle, 3);
+        double pulse = Math.sin(tutorialFrame / 7.0) * 0.055;
+        int size = (int) Math.round(tileSize * (1.0 + 2.75 * eased + pulse));
+        int cx = w / 2;
+        int cy = h / 2 - 76;
+
+        for (int i = 5; i >= 1; i--) {
+            int glowSize = size + i * 28;
+            int alpha = Math.max(14, 72 - i * 10);
+            g2.setColor(new Color(255, 218, 82, alpha));
+            g2.fillOval(cx - glowSize / 2, cy - glowSize / 2, glowSize, glowSize);
+        }
+
+        g2.setColor(new Color(255, 250, 190, 145));
+        g2.setStroke(new BasicStroke(4f));
+        g2.drawOval(cx - size / 2 - 14, cy - size / 2 - 14, size + 28, size + 28);
+        g2.drawImage(AssetManager.hammer, cx - size / 2, cy - size / 2, size, size, null);
+    }
+
+    private void drawTutorialContent(Graphics2D g2, TutorialPrompt prompt, int x, int y, int panelW, int panelH) {
+        switch (prompt) {
+            case BASIC_CONTROLS -> {
+                drawTutorialTitle(g2, "BẮT ĐẦU", "Điều khiển cơ bản", x, y, panelW);
+                int col1 = x + 52;
+                int col2 = x + 345;
+                int col3 = x + 638;
+                int row1 = y + 100;
+                int row2 = y + 154;
+                drawTutorialKeyRow(g2, col1, row1, "W / ↑", "Đi lên", 250);
+                drawTutorialKeyRow(g2, col1, row2, "S / ↓", "Đi xuống", 250);
+                drawTutorialKeyRow(g2, col2, row1, "A / ←", "Đi trái", 250);
+                drawTutorialKeyRow(g2, col2, row2, "D / →", "Đi phải", 250);
+                drawTutorialKeyRow(g2, col3, row1, "R", "Về spawn", 250);
+                drawTutorialKeyRow(g2, col3, row2, "P / ESC", "Tạm dừng", 250);
+            }
+            case HAMMER -> {
+                drawTutorialTitle(g2, "NHẶT ĐƯỢC BÚA", "Cách dùng búa", x, y, panelW);
+                drawTutorialKeyRow(g2, x + 70, y + 115, "F", "Đập 4 ô kề cạnh nhân vật", 410);
+                drawTutorialKeyRow(g2, x + 510, y + 115, "BÚA", "Phá bụi, phá nhựa, làm choáng rắn", 480);
+                drawTutorialLine(g2, "Đứng sát mục tiêu rồi nhấn F đúng lúc.", x + 70, y + 160, panelW - 140, 21);
+            }
+            case BOSS -> {
+                drawTutorialTitle(g2, "RẮN CANH CỬA", "Lối thoát đã bị chặn", x, y, panelW);
+                drawTutorialLine(g2, "Cánh cửa đá vừa khép lại. Một con rắn khổng lồ đang canh lối thoát khỏi hầm ngục.",
+                        x + 58, y + 92, panelW - 116, 20);
+                drawTutorialLine(g2, "Né đầu rắn và luồng lửa của nó. Khi rắn trồi lên, hãy đẩy đá rơi xuống đúng đầu rắn.",
+                        x + 58, y + 124, panelW - 116, 20);
+                drawTutorialKeyRow(g2, x + 70, y + 166, "ĐÁ", "Đẩy đá xuống đầu rắn", 410);
+                drawTutorialKeyRow(g2, x + 510, y + 166, "MỤC TIÊU", "Đánh bại nó để mở đường thoát", 480);
+            }
+        }
+
+        g2.setFont(new Font("Georgia", Font.BOLD, 20));
+        String hint = "Nhấn ENTER để tiếp tục";
+        drawOutlinedText(g2, hint, getCenterX(g2, hint, getWidth()), y + panelH - 34,
+                new Color(255, 245, 205), new Color(45, 25, 10));
+    }
+
+    private void drawTutorialTitle(Graphics2D g2, String title, String subtitle, int x, int y, int panelW) {
+        g2.setFont(new Font("Georgia", Font.BOLD, 30));
+        drawOutlinedText(g2, title, x + 40, y + 47,
+                new Color(255, 226, 110), new Color(52, 28, 8));
+
+        g2.setFont(new Font("Georgia", Font.BOLD, 18));
+        drawOutlinedText(g2, subtitle, x + 42 + g2.getFontMetrics(new Font("Georgia", Font.BOLD, 30)).stringWidth(title),
+                y + 47,
+                new Color(255, 248, 220), new Color(52, 28, 8));
+    }
+
+    private void drawTutorialKeyRow(Graphics2D g2, int x, int y, String key, String text) {
+        drawTutorialKeyRow(g2, x, y, key, text, 250);
+    }
+
+    private void drawTutorialKeyRow(Graphics2D g2, int x, int y, String key, String text, int rowW) {
+        int rowH = 46;
+        int keyW = 86;
+        g2.setColor(new Color(255, 255, 255, 26));
+        g2.fillRoundRect(x, y - 34, rowW, rowH, 12, 12);
+        g2.setColor(new Color(26, 15, 7, 145));
+        g2.fillRoundRect(x + 9, y - 27, keyW, rowH - 14, 9, 9);
+
+        g2.setFont(new Font("Georgia", Font.BOLD, 18));
+        FontMetrics keyMetrics = g2.getFontMetrics();
+        drawOutlinedText(g2, key, x + 9 + (keyW - keyMetrics.stringWidth(key)) / 2, y - 5,
+                new Color(255, 226, 110), new Color(42, 22, 7));
+
+        g2.setFont(new Font("Georgia", Font.BOLD, 16));
+        drawFittedTutorialText(g2, text, x + 110, y - 5, rowW - 124, 13,
+                new Color(245, 237, 210), new Color(42, 24, 10));
+    }
+
+    private void drawTutorialLine(Graphics2D g2, String text, int x, int y, int maxWidth, int fontSize) {
+        g2.setFont(new Font("Georgia", Font.BOLD, fontSize));
+        drawFittedTutorialText(g2, text, x, y, maxWidth, 16,
+                new Color(245, 237, 210), new Color(42, 24, 10));
+    }
+
+    private void drawTutorialParagraph(Graphics2D g2, String text, int x, int y, int maxWidth, int lineHeight,
+                                       int fontSize) {
+        g2.setFont(new Font("Georgia", Font.BOLD, fontSize));
+        FontMetrics metrics = g2.getFontMetrics();
+        StringBuilder line = new StringBuilder();
+        int drawY = y;
+        for (String word : text.split(" ")) {
+            String candidate = line.length() == 0 ? word : line + " " + word;
+            if (line.length() > 0 && metrics.stringWidth(candidate) > maxWidth) {
+                drawOutlinedText(g2, line.toString(), x, drawY,
+                        new Color(245, 237, 210), new Color(42, 24, 10));
+                line = new StringBuilder(word);
+                drawY += lineHeight;
+            } else {
+                line = new StringBuilder(candidate);
+            }
+        }
+        if (line.length() > 0) {
+            drawOutlinedText(g2, line.toString(), x, drawY,
+                    new Color(245, 237, 210), new Color(42, 24, 10));
+        }
+    }
+
+    private void drawFittedTutorialText(Graphics2D g2, String text, int x, int y, int maxWidth, int minSize,
+                                        Color fill, Color outline) {
+        Font originalFont = g2.getFont();
+        Font fittedFont = originalFont;
+        while (fittedFont.getSize() > minSize && g2.getFontMetrics(fittedFont).stringWidth(text) > maxWidth) {
+            fittedFont = fittedFont.deriveFont((float) fittedFont.getSize() - 1f);
+        }
+        g2.setFont(fittedFont);
+        drawOutlinedText(g2, text, x, y, fill, outline);
+        g2.setFont(originalFont);
+    }
+
+    private void drawOutlinedText(Graphics2D g2, String text, int x, int y, Color fill, Color outline) {
+        g2.setColor(outline);
+        g2.drawString(text, x - 2, y);
+        g2.drawString(text, x + 2, y);
+        g2.drawString(text, x, y - 2);
+        g2.drawString(text, x, y + 2);
+        g2.setColor(fill);
+        g2.drawString(text, x, y);
+    }
+
+    private int getCenterX(Graphics2D g2, String text, int w) {
+        return (w - g2.getFontMetrics().stringWidth(text)) / 2;
     }
 
     @Override
@@ -1210,11 +1738,12 @@ public class GamePanel extends JPanel {
         if ((state == GameState.PLAYING || state == GameState.PAUSED) && snakeBossController != null) {
             snakeBossController.drawHealthBar(g2);
         }
+        drawGameplayTutorialOverlay(g2);
         g2.dispose();
     }
 
     private void applyGameplayTransform(Graphics2D g2) {
-        double zoom = getFinalDeathZoomScale();
+        double zoom = Math.max(getFinalDeathZoomScale(), getResetSpawnZoomScale());
         if (zoom > 1.001 && player != null) {
             int focusScreenX = player.x + tileSize / 2 - cameraX;
             int focusScreenY = player.y + tileSize / 2 - cameraY;
@@ -1261,6 +1790,7 @@ public class GamePanel extends JPanel {
         private int headLeftCol;
         private double headTopRow;
         private boolean battleStarted;
+        private boolean waitingForIntroConfirm;
 
         private SnakeBossController(GamePanel gp, List<Point> spawnMarkers) {
             this.gp = gp;
@@ -1280,6 +1810,7 @@ public class GamePanel extends JPanel {
             phaseTimer = 0;
             hurtFlashFrames = 0;
             battleStarted = false;
+            waitingForIntroConfirm = false;
             headLeftCol = fallbackLeftCol;
             headTopRow = fallbackTopRow;
             pendingRockRespawns.clear();
@@ -1294,11 +1825,14 @@ public class GamePanel extends JPanel {
                 return;
             }
 
-            if (!battleStarted && gp.player.getCol() > getFirstLockCol()) {
-                startBattle();
+            if (!battleStarted && !waitingForIntroConfirm && gp.player.getCol() > getFirstLockCol()) {
+                waitingForIntroConfirm = true;
+                setLocksClosedInstantly();
+                gp.showBossTutorial();
+                return;
             }
 
-            updateLocks(!battleStarted);
+            updateLocks(!battleStarted && !waitingForIntroConfirm);
             if (!battleStarted) {
                 return;
             }
@@ -1356,8 +1890,15 @@ public class GamePanel extends JPanel {
 
         private void startBattle() {
             battleStarted = true;
+            waitingForIntroConfirm = false;
             chooseNextSpawn();
             startPhase(BossPhase.EMERGE);
+        }
+
+        private void confirmBossIntro() {
+            if (waitingForIntroConfirm && !battleStarted) {
+                startBattle();
+            }
         }
 
         private void startPhase(BossPhase nextPhase) {
@@ -1437,6 +1978,12 @@ public class GamePanel extends JPanel {
         private void setLocksOpenInstantly() {
             for (LockBolt lock : controlledLocks) {
                 lock.restoreState(2, 0);
+            }
+        }
+
+        private void setLocksClosedInstantly() {
+            for (LockBolt lock : controlledLocks) {
+                lock.restoreState(0, 0);
             }
         }
 
@@ -1785,6 +2332,14 @@ public class GamePanel extends JPanel {
             SUBMERGE,
             DEAD
         }
+
+    }
+
+    private enum TutorialPrompt {
+        BASIC_CONTROLS,
+        HAMMER,
+        BOSS,
+        FINAL_DIAMOND
     }
 
     private static final class LevelDefinition {

@@ -8,3 +8,6 @@ gen/
 /shelf/
 /workspace.xml
 /bin/
+.agnets
+.codex
+.junie
