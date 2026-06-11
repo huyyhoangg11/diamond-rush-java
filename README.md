@@ -127,7 +127,7 @@ Người chơi không cần tải toàn bộ source code. Chỉ cần tải file
 Sau khi tải file, mở terminal tại thư mục chứa file `.jar` và chạy:
 
 ```bash
-java -jar DiamondRush.jar
+java -jar DiamondRush2D.jar
 ```
 
 ### Cách 2: Chạy từ source code
@@ -190,7 +190,7 @@ Build → Build Artifacts... → Rebuild
 File JAR sau khi build thường nằm trong:
 
 ```text
-out/artifacts/Project_OOP_jar/
+out/artifacts/DiamondRush_jar/
 ```
 
 Có thể đổi tên file thành:
@@ -221,7 +221,7 @@ java -jar DiamondRush2D.jar
 Trên macOS/Linux/Git Bash:
 
 ```bash
-rm -rf out DiamondRush.jar
+rm -rf out DiamondRush2D.jar
 mkdir -p out
 javac -d out $(find src -name "*.java")
 jar --create --file DiamondRush2D.jar --main-class main.Game -C out . -C res .
